@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { AvisoError } from '../componentes/Aviso'
+import { CocheEscaparate } from '../componentes/CocheEscaparate'
 
 export function Login() {
   const { entrar } = useAutenticacion()
@@ -30,8 +31,17 @@ export function Login() {
 
   return (
     <div className="pantalla-acceso">
+      {/* El coche es presentacion pura: el formulario sigue siendo lo primero
+          para el teclado y el lector de pantalla. */}
+      <div className="acceso-marca">
+        <h1 className="titulo-marca">Taller <em>Automotriz</em></h1>
+        <p className="lema">Automoviles · Motocicletas · Competicion</p>
+        <div className="franjas" />
+        <CocheEscaparate className="acceso-coche" />
+      </div>
+
       <form className="tarjeta-acceso" onSubmit={enviar}>
-        <h1>Taller Automotriz</h1>
+        <h1>Pit de acceso</h1>
         <p className="tenue">Ingrese con sus credenciales del taller.</p>
 
         <AvisoError error={error} />

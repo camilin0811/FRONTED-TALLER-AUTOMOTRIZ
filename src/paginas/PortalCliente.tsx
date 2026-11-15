@@ -6,6 +6,7 @@ import { Aviso, AvisoError } from '../componentes/Aviso'
 import { ErrorApi } from '../api/cliente'
 import { LineaTiempo } from '../componentes/LineaTiempo'
 import { dinero, fecha } from '../formato'
+import { CocheEscaparate } from '../componentes/CocheEscaparate'
 
 /**
  * Portal público del cliente.
@@ -43,10 +44,15 @@ export function PortalCliente() {
     <>
       <div className="portal-barra">Taller Automotriz · Portal del Cliente</div>
       <div className="portal">
-        <h2>Consulte su vehículo</h2>
-        <p className="tenue">
-          Ingrese la placa y su número de documento para ver el estado de su orden.
-        </p>
+        <div className="portal-presentacion">
+          <div className="texto">
+            <h2>Consulte su vehículo</h2>
+            <p className="tenue">
+              Ingrese la placa y su número de documento para ver el estado de su orden.
+            </p>
+          </div>
+          <CocheEscaparate className="portal-coche" />
+        </div>
 
         <form onSubmit={buscar} className="fila" style={{ alignItems: 'flex-end', marginBottom: 20 }}>
           <div>
