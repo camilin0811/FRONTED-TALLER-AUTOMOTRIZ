@@ -383,6 +383,12 @@ input:focus, select:focus {
     var(--fibra), var(--carbono);
   position: relative; overflow: hidden;
 }
+.coche-fallback::before {
+  content: ''; position: absolute; top: 12%; left: 10%; right: 14%;
+  height: 34px; opacity: .22; transform: skewY(-2deg);
+  background: repeating-conic-gradient(#f2f2f2 0% 25%, #101010 25% 50%);
+  background-size: 17px 17px;
+}
 .coche-fallback::after {
   content: ''; position: absolute; left: 8%; right: 8%; bottom: 26%;
   height: 3px; border-radius: 2px;
