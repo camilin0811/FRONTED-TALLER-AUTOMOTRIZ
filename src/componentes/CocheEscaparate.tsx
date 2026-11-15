@@ -24,7 +24,7 @@ function hayWebGL(): boolean {
 export function CocheEscaparate({ className }: { className?: string }) {
   // Se evalua una sola vez por montaje: ni el soporte de WebGL ni la
   // preferencia de movimiento cambian mientras la pagina esta abierta.
-  const soportado = useMemo(hayWebGL, [])
+  const soportado = useMemo(() => hayWebGL(), [])
   const animado = useMemo(
     () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],

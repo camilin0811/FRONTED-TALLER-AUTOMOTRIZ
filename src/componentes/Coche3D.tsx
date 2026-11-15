@@ -1,211 +1,160 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { ContactShadows } from '@react-three/drei'
-import { CanvasTexture, DoubleSide, SRGBColorSpace } from 'three'
-import type { Group, Mesh, PlaneGeometry } from 'three'
+import { ContactShadows, Environment, MeshReflectorMaterial, useGLTF } from '@react-three/drei'
+import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
+import { Box3, Group as GrupoTres, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three'
+import type { Group, Material, Mesh, Object3D } from 'three'
 
 /**
- * Monoplaza de carreras generico, construido con geometrias de three.js.
+ * Vitrina 3D del taller: un deportivo CC0 (Quaternius, via Poly Pizza) con
+ * materiales PBR aplicados en tiempo de ejecucion, luz de estudio HDRI,
+ * piso reflectante y un posprocesado sutil.
  *
- * Es un diseño original hecho de cajas, cilindros y conos: no reproduce
- * ningun coche real ni lleva marcas. Al ser geometria pura pesa cero bytes
- * de descarga extra (no hay modelo .glb que traer) y se dibuja en cualquier
- * equipo modesto.
+ * Todo se sirve desde /public: el modelo comprimido con Draco (25 KB), el
+ * decodificador y el HDRI. En tiempo de ejecucion no se toca ningun CDN.
  *
  * Este modulo solo se carga de forma diferida desde CocheEscaparate, que es
  * quien decide si hay WebGL y si el visitante tolera movimiento.
  */
 
-/* Materiales como constantes. La librea es rosso corsa con acentos amarillos,
-   al estilo de la escuderia italiana; sin escudos ni nombres, que son marca
-   registrada: lo que identifica es el color, y ese no es de nadie. */
-const PINTURA = { color: '#d40000', metalness: 0.45, roughness: 0.3 }
-const GIALLO = { color: '#ffcf00', metalness: 0.3, roughness: 0.4 }
-const CARBONO = { color: '#15181d', metalness: 0.3, roughness: 0.55 }
-const GOMA = { color: '#121212', metalness: 0, roughness: 0.95 }
-const LLANTA = { color: '#b9c1ca', metalness: 0.85, roughness: 0.35 }
+const MODELO = '/models/deportivo.glb'
+const DRACO = '/draco/'
 
-function Rueda({ posicion, ancho }: { posicion: [number, number, number]; ancho: number }) {
-  return (
-    <group position={posicion} rotation={[0, 0, Math.PI / 2]}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.34, 0.34, ancho, 24]} />
-        <meshStandardMaterial {...GOMA} />
-      </mesh>
-      {/* Disco de la llanta a cada lado */}
-      <mesh position={[0, ancho / 2 + 0.005, 0]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.02, 20]} />
-        <meshStandardMaterial {...LLANTA} />
-      </mesh>
-      <mesh position={[0, -ancho / 2 - 0.005, 0]}>
-        <cylinderGeometry args={[0.2, 0.2, 0.02, 20]} />
-        <meshStandardMaterial {...LLANTA} />
-      </mesh>
-    </group>
-  )
-}
-
-function Monoplaza({ animado }: { animado: boolean }) {
-  const grupo = useRef<Group>(null)
-
-  // Giro lento de plato de exhibicion. Si el visitante pidio menos
-  // movimiento, el coche queda quieto en un angulo que lo muestra bien.
-  useFrame((_, delta) => {
-    if (animado && grupo.current) grupo.current.rotation.y += delta * 0.3
-  })
-
-  return (
-    <group ref={grupo} rotation={[0, 0.7, 0]}>
-      {/* Casco central: del morro a la cola */}
-      <mesh castShadow position={[0, 0.3, 0]}>
-        <boxGeometry args={[0.62, 0.3, 2.6]} />
-        <meshStandardMaterial {...PINTURA} />
-      </mesh>
-
-      {/* Morro: cono aplastado que remata adelante */}
-      <mesh castShadow position={[0, 0.28, 1.72]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.55]}>
-        <coneGeometry args={[0.3, 0.85, 4, 1]} />
-        <meshStandardMaterial {...PINTURA} />
-      </mesh>
-
-      {/* Pontones laterales */}
-      <mesh castShadow position={[0.55, 0.26, -0.25]}>
-        <boxGeometry args={[0.5, 0.24, 1.3]} />
-        <meshStandardMaterial {...PINTURA} />
-      </mesh>
-      <mesh castShadow position={[-0.55, 0.26, -0.25]}>
-        <boxGeometry args={[0.5, 0.24, 1.3]} />
-        <meshStandardMaterial {...PINTURA} />
-      </mesh>
-
-      {/* Cabina y reposacabezas */}
-      <mesh castShadow position={[0, 0.5, 0.15]}>
-        <boxGeometry args={[0.42, 0.18, 0.7]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-      <mesh castShadow position={[0, 0.58, -0.35]}>
-        <boxGeometry args={[0.3, 0.26, 0.34]} />
-        <meshStandardMaterial {...PINTURA} />
-      </mesh>
-
-      {/* Toma de aire sobre la cabina */}
-      <mesh castShadow position={[0, 0.72, -0.62]}>
-        <boxGeometry args={[0.2, 0.18, 0.5]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-
-      {/* Aleron delantero con sus derivas */}
-      <mesh castShadow position={[0, 0.12, 1.95]}>
-        <boxGeometry args={[1.5, 0.05, 0.4]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-      <mesh position={[0.74, 0.2, 1.95]}>
-        <boxGeometry args={[0.03, 0.2, 0.42]} />
-        <meshStandardMaterial {...GIALLO} />
-      </mesh>
-      <mesh position={[-0.74, 0.2, 1.95]}>
-        <boxGeometry args={[0.03, 0.2, 0.42]} />
-        <meshStandardMaterial {...GIALLO} />
-      </mesh>
-
-      {/* Aleron trasero: dos soportes, plano alto y placas laterales */}
-      <mesh position={[0, 0.55, -1.42]}>
-        <boxGeometry args={[0.06, 0.34, 0.06]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-      <mesh castShadow position={[0, 0.76, -1.45]}>
-        <boxGeometry args={[1.18, 0.05, 0.34]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-      <mesh position={[0.58, 0.62, -1.45]}>
-        <boxGeometry args={[0.03, 0.34, 0.4]} />
-        <meshStandardMaterial {...GIALLO} />
-      </mesh>
-      <mesh position={[-0.58, 0.62, -1.45]}>
-        <boxGeometry args={[0.03, 0.34, 0.4]} />
-        <meshStandardMaterial {...GIALLO} />
-      </mesh>
-
-      {/* Difusor trasero */}
-      <mesh position={[0, 0.18, -1.38]}>
-        <boxGeometry args={[0.7, 0.16, 0.3]} />
-        <meshStandardMaterial {...CARBONO} />
-      </mesh>
-
-      <Rueda posicion={[0.78, 0.34, 1.15]} ancho={0.3} />
-      <Rueda posicion={[-0.78, 0.34, 1.15]} ancho={0.3} />
-      <Rueda posicion={[0.8, 0.34, -1.0]} ancho={0.38} />
-      <Rueda posicion={[-0.8, 0.34, -1.0]} ancho={0.38} />
-    </group>
-  )
-}
-
-/* ----------------------------------------------------------- bandera */
-
-const ANCHO_BANDERA = 4
-const ALTO_BANDERA = 2.1
-
-/**
- * Deforma el plano como tela al viento. La amplitud crece con la distancia
- * al mastil: el borde fijo no se mueve y la punta es la que flamea.
- */
-function ondear(geometria: PlaneGeometry, tiempo: number) {
-  const pos = geometria.attributes.position
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i)
-    const avance = (x + ANCHO_BANDERA / 2) / ANCHO_BANDERA
-    pos.setZ(i, Math.sin(x * 2.1 + tiempo * 2.6) * 0.32 * avance)
+/* Los materiales del GLB traen nombres semanticos (Orange, Windows,
+   TailLights...). Aqui cada uno se sustituye por su version fisica:
+   la pintura es metalica con laca, el vidrio refleja, el caucho no. */
+function materialPara(nombre: string): Material | null {
+  switch (nombre) {
+    case 'White': // carroceria del SportsCar2
+    case 'Orange':
+      return new MeshPhysicalMaterial({
+        color: '#b40a0a', metalness: 0.7, roughness: 0.32,
+        clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 0.65,
+      })
+    case 'DarkOrange':
+      return new MeshPhysicalMaterial({
+        color: '#7e0606', metalness: 0.7, roughness: 0.38,
+        clearcoat: 0.8, clearcoatRoughness: 0.16, envMapIntensity: 0.6,
+      })
+    case 'Windows':
+      return new MeshPhysicalMaterial({
+        color: '#0b1016', metalness: 0.2, roughness: 0.06,
+        clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 0.8,
+      })
+    case 'Grey': // rines
+      return new MeshStandardMaterial({ color: '#b9c1ca', metalness: 0.9, roughness: 0.35, envMapIntensity: 0.7 })
+    case 'Headlights':
+      return new MeshStandardMaterial({
+        color: '#e8f1fb', emissive: '#9fc4ff', emissiveIntensity: 1.4,
+        metalness: 0.1, roughness: 0.2,
+      })
+    case 'TailLights': // encendidas: el bloom las hace brillar
+      return new MeshStandardMaterial({
+        color: '#ff2020', emissive: '#ff0808', emissiveIntensity: 3.2,
+        metalness: 0.1, roughness: 0.3,
+      })
+    case 'Black': // caucho
+      return new MeshStandardMaterial({ color: '#0b0b0c', metalness: 0, roughness: 0.95 })
+    default:
+      return null
   }
-  pos.needsUpdate = true
-  geometria.computeVertexNormals()
 }
 
-function BanderaCuadros({ animado }: { animado: boolean }) {
-  const malla = useRef<Mesh>(null)
-  const tiempo = useRef(0)
+function Deportivo({ animado }: { animado: boolean }) {
+  const gltf = useGLTF(MODELO, DRACO)
+  const plato = useRef<Group>(null)
+  const ruedas = useRef<Object3D[]>([])
+  // 'z' si el coche corre a lo largo de X; 'x' si corre a lo largo de Z.
+  const ejeRueda = useRef<'x' | 'z'>('z')
 
-  // La cuadricula se pinta una vez en un canvas: no hay imagen que descargar.
-  const textura = useMemo(() => {
-    const lienzo = document.createElement('canvas')
-    lienzo.width = 320
-    lienzo.height = 168
-    const ctx = lienzo.getContext('2d')
-    if (ctx) {
-      const lado = 24
-      for (let fila = 0; fila * lado < lienzo.height; fila++) {
-        for (let col = 0; col * lado < lienzo.width; col++) {
-          ctx.fillStyle = (fila + col) % 2 === 0 ? '#f2f2f2' : '#101010'
-          ctx.fillRect(col * lado, fila * lado, lado, lado)
-        }
-      }
-    }
-    const resultado = new CanvasTexture(lienzo)
-    resultado.colorSpace = SRGBColorSpace
-    return resultado
-  }, [])
+  // Clon propio: varias instancias (acceso y portal) no deben compartir
+  // transformaciones ni materiales.
+  const escena = useMemo(() => {
+    const copia = gltf.scene.clone(true)
+    copia.traverse((objeto) => {
+      const malla = objeto as Mesh
+      if (!malla.isMesh) return
+      malla.castShadow = true
+      const aplicar = (m: Material) => materialPara(m.name) ?? m
+      malla.material = Array.isArray(malla.material)
+        ? malla.material.map(aplicar)
+        : aplicar(malla.material)
+    })
+    return copia
+  }, [gltf])
 
-  // Forma inicial: aunque no haya animacion, la bandera nunca aparece plana.
+  // Normaliza el modelo: escala conocida, centrado y ruedas sobre el piso.
+  // Asi un cambio de modelo no obliga a recalibrar la camara.
   useLayoutEffect(() => {
-    if (malla.current) ondear(malla.current.geometry as PlaneGeometry, 0)
-  }, [])
+    escena.position.set(0, 0, 0)
+    escena.scale.setScalar(1)
+    const caja = new Box3().setFromObject(escena)
+    const tamano = caja.getSize(new Vector3())
+    escena.scale.setScalar(3.9 / Math.max(tamano.x, tamano.z))
+    caja.setFromObject(escena)
+    const centro = caja.getCenter(new Vector3())
+    escena.position.set(-centro.x, -caja.min.y, -centro.z)
 
-  useFrame((_, delta) => {
-    if (!animado || !malla.current) return
-    tiempo.current += delta
-    ondear(malla.current.geometry as PlaneGeometry, tiempo.current)
+    ejeRueda.current = tamano.x >= tamano.z ? 'z' : 'x'
+
+    // Las ruedas del modelo no traen el pivote en su eje: girarlas tal cual
+    // las haria orbitar fuera del guardabarros. Cada una se cuelga de un
+    // grupo nuevo centrado en su caja envolvente, y se gira el grupo.
+    escena.updateMatrixWorld(true)
+    ruedas.current = []
+    const nodosRueda: Object3D[] = []
+    escena.traverse((objeto) => {
+      if (/wheel/i.test(objeto.name)) nodosRueda.push(objeto)
+    })
+    for (const rueda of nodosRueda) {
+      const padre = rueda.parent
+      if (!padre) continue
+      const centro = new Box3().setFromObject(rueda).getCenter(new Vector3())
+      padre.worldToLocal(centro)
+      const pivote = new GrupoTres()
+      pivote.position.copy(centro)
+      padre.add(pivote)
+      pivote.attach(rueda)
+      ruedas.current.push(pivote)
+    }
+  }, [escena])
+
+  useFrame((estado, delta) => {
+    if (!animado) return
+    if (plato.current) plato.current.rotation.y += delta * 0.28
+    for (const rueda of ruedas.current) rueda.rotation[ejeRueda.current] -= delta * 2.2
+    // La camara acompana al cursor apenas unos centimetros: presencia, no mareo.
+    const camara = estado.camera
+    camara.position.x += (4.4 + estado.pointer.x * 0.5 - camara.position.x) * 0.05
+    camara.position.y += (1.7 + estado.pointer.y * 0.3 - camara.position.y) * 0.05
+    camara.lookAt(0, 0.55, 0)
   })
 
   return (
-    <group position={[0.1, 1.35, -2.6]} rotation={[0, -0.12, 0]}>
-      <mesh position={[-ANCHO_BANDERA / 2 - 0.05, -0.3, 0]}>
-        <cylinderGeometry args={[0.035, 0.035, ALTO_BANDERA + 1.5, 12]} />
-        <meshStandardMaterial color="#8a93a0" metalness={0.8} roughness={0.35} />
-      </mesh>
-      <mesh ref={malla}>
-        <planeGeometry args={[ANCHO_BANDERA, ALTO_BANDERA, 40, 18]} />
-        <meshStandardMaterial map={textura} side={DoubleSide} roughness={0.85} />
-      </mesh>
+    <group ref={plato} rotation={[0, 0.65, 0]}>
+      <primitive object={escena} />
     </group>
+  )
+}
+
+function Piso() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]}>
+      <circleGeometry args={[8, 48]} />
+      <MeshReflectorMaterial
+        blur={[280, 80]}
+        resolution={512}
+        mixBlur={0.9}
+        mixStrength={8}
+        roughness={0.65}
+        depthScale={1.1}
+        minDepthThreshold={0.4}
+        maxDepthThreshold={1.3}
+        color="#0a0c10"
+        metalness={0.5}
+        mirror={0.55}
+      />
+    </mesh>
   )
 }
 
@@ -214,21 +163,28 @@ export default function Coche3D({ animado }: { animado: boolean }) {
     <Canvas
       shadows
       dpr={[1, 1.75]}
-      camera={{ position: [3.6, 1.5, 4.2], fov: 32 }}
+      camera={{ position: [4.4, 1.7, 4.8], fov: 30 }}
       /* Si el coche no puede dibujarse, mejor nada que un lienzo roto. */
       fallback={<div className="coche-fallback" aria-hidden />}
       aria-hidden
     >
-      {/* Iluminacion de vitrina: una luz principal calida, un contorno rojo
-          desde atras y un relleno frio para que el metal no muera en negro. */}
-      <ambientLight intensity={0.55} />
-      <spotLight position={[5, 7, 4]} angle={0.45} penumbra={0.6} intensity={220} castShadow />
-      <directionalLight position={[-4, 2, -5]} color="#ff2d23" intensity={2.2} />
-      <directionalLight position={[-3, 4, 3]} color="#9fb6d0" intensity={1.1} />
+      <Suspense fallback={null}>
+        {/* Luz de estudio: el HDRI ilumina y los reflejos salen de el.
+            La puntual solo recorta el contorno y proyecta la sombra. */}
+        <Environment files="/hdr/estudio.hdr" />
+        <spotLight position={[6, 8, 4]} angle={0.4} penumbra={0.7} intensity={32} castShadow />
 
-      <BanderaCuadros animado={animado} />
-      <Monoplaza animado={animado} />
-      <ContactShadows position={[0, 0, 0]} opacity={0.55} scale={9} blur={2.4} far={2} />
+        <Deportivo animado={animado} />
+        <Piso />
+        <ContactShadows position={[0, 0.001, 0]} opacity={0.6} scale={10} blur={2.2} far={2.2} />
+
+        <EffectComposer>
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={0.7} />
+          <Vignette offset={0.25} darkness={0.72} />
+        </EffectComposer>
+      </Suspense>
     </Canvas>
   )
 }
+
+useGLTF.preload(MODELO, DRACO)
