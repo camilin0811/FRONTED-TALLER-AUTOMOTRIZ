@@ -32,6 +32,27 @@ npm run build     # compila TypeScript y empaqueta para producción
 npm run preview   # sirve el resultado del build
 ```
 
+## Desplegar
+
+Vercel y Netlify detectan la configuracion sola; los archivos `vercel.json` y `netlify.toml` ya traen el fallback de rutas, que es lo que más se rompe al desplegar una aplicación de una sola página.
+
+La única variable que hay que definir es la URL de la API:
+
+```
+VITE_API_URL = https://tu-backend.up.railway.app/api/v1
+```
+
+> **Se incrusta al compilar, no se lee al ejecutar.** Si la cambias después, hay que volver a desplegar.
+
+Y en el backend hay que poner la URL del frontend en `CORS_ORIGENES`, o el navegador bloqueará las llamadas. El paso a paso completo está en la [guía de despliegue](https://github.com/camilin0811/BACKEND-TALLER-AUTOMOTRIZ/blob/main/DESPLIEGUE.md).
+
+Con Docker:
+
+```bash
+docker build --build-arg VITE_API_URL=https://tu-backend/api/v1 -t taller-frontend .
+docker run -p 8080:80 taller-frontend
+```
+
 ## Pantallas
 
 | Ruta | Pantalla | Para quién |
