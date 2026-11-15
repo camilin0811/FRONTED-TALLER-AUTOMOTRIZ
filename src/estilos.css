@@ -25,8 +25,13 @@
   --neutro-fondo: rgba(148, 163, 184, .14); --neutro-tinta: #a9b2bd;
 
   --radio: 8px;
+  --radio-grande: 14px;
+  --espacio: 8px;      /* unidad base: los margenes son multiplos de esta */
   --sombra: 0 2px 10px rgba(0, 0, 0, .45);
+  --sombra-alta: 0 18px 50px rgba(0, 0, 0, .55);
   --titulos: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --exhibicion: "Orbitron", "Rajdhani", system-ui, sans-serif;
+  --cuerpo: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   /* Trama de fibra de carbono: dos rejillas diagonales muy tenues. */
   --fibra:
@@ -38,7 +43,7 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  font-family: var(--cuerpo);
   color: var(--tinta);
   background: var(--fibra), var(--asfalto);
   font-size: 14px;
@@ -57,6 +62,12 @@ h1, h2, h3 { font-family: var(--titulos); letter-spacing: .02em; }
 ::-webkit-scrollbar-track { background: var(--carbono); }
 ::-webkit-scrollbar-thumb { background: var(--borde-fuerte); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #46505f; }
+
+/* Aparicion suave: las secciones entran con un leve desplazamiento. */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
 
 /* ---------------------------------------------------------- estructura */
 
@@ -96,6 +107,10 @@ h1, h2, h3 { font-family: var(--titulos); letter-spacing: .02em; }
 }
 
 .contenido { flex: 1; padding: 24px 32px; min-width: 0; }
+
+.encabezado, .indicadores, .panel, .aviso, .maestro-detalle, .linea-tiempo {
+  animation: aparecer .35s ease both;
+}
 
 .encabezado {
   display: flex; align-items: center; justify-content: space-between;
@@ -162,6 +177,7 @@ thead th {
   text-transform: uppercase; color: var(--tinta-suave);
   background: var(--carbono-claro); padding: 11px 12px;
   border-bottom: 2px solid var(--rojo-oscuro);
+  position: sticky; top: 0; z-index: 2;
 }
 tbody td { padding: 12px; border-bottom: 1px solid var(--borde); }
 tbody tr:nth-child(even) { background: rgba(255, 255, 255, .015); }
@@ -285,6 +301,19 @@ input:focus, select:focus {
 /* -------------------------------------------------- carga y vacios */
 
 .cargando { padding: 36px; text-align: center; color: var(--tinta-tenue); }
+
+/* Esqueleto: la pagina insinua su forma mientras llegan los datos. */
+.esqueleto { display: grid; gap: 12px; padding: 4px 0; }
+.hueso {
+  height: 16px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--panel) 25%, var(--panel-alto) 50%, var(--panel) 75%);
+  background-size: 200% 100%;
+  animation: hueso-brillo 1.3s ease-in-out infinite;
+}
+.hueso.titulo { height: 26px; width: 38%; }
+.hueso.bloque { height: 86px; border-radius: var(--radio); }
+.hueso.media { width: 62%; }
+@keyframes hueso-brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .vacio {
   padding: 36px; text-align: center; color: var(--tinta-tenue);
   border: 1px dashed var(--borde-fuerte); border-radius: var(--radio);
@@ -331,47 +360,149 @@ input:focus, select:focus {
 /* El coche acompana al formulario de consulta sin quitarle protagonismo. */
 .portal-presentacion { display: flex; gap: 20px; align-items: center; }
 .portal-presentacion .texto { flex: 1; min-width: 240px; }
-.portal-coche { flex: 0 0 300px; height: 150px; }
+.portal-coche { flex: 0 0 300px; height: 150px; border-radius: var(--radio); overflow: hidden; }
 @media (max-width: 680px) { .portal-coche { display: none; } }
 
-/* ------------------------------------------------------------- acceso */
+/* ------------------------------------------------- landing de acceso */
 
-.pantalla-acceso {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+.landing {
+  min-height: 100vh;
   background:
-    radial-gradient(1100px 500px at 70% 8%, rgba(225, 6, 0, .09), transparent 60%),
+    radial-gradient(1200px 520px at 72% 4%, rgba(225, 6, 0, .10), transparent 60%),
     var(--fibra), var(--asfalto);
-  padding: 20px;
-  flex-wrap: wrap; gap: 36px;
 }
-.acceso-marca { width: min(560px, 92vw); text-align: center; }
-.acceso-marca .titulo-marca {
-  font-family: var(--titulos); font-size: clamp(30px, 5vw, 44px); font-weight: 700;
-  text-transform: uppercase; letter-spacing: .1em; margin: 0; color: #fff;
+
+.barra-landing {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px clamp(16px, 4vw, 48px);
+  background: rgba(13, 15, 19, .72);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--borde);
 }
-.acceso-marca .titulo-marca em { font-style: normal; color: var(--rojo-vivo); }
-.acceso-marca .lema {
-  letter-spacing: .3em; text-transform: uppercase; font-size: 11px;
-  color: var(--tinta-tenue); margin: 6px 0 0;
+.marca-barra {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--exhibicion); font-weight: 700; font-size: 15px;
+  letter-spacing: .08em; text-transform: uppercase;
 }
-/* Lineas de velocidad bajo el nombre. */
-.acceso-marca .franjas {
-  width: 200px; height: 4px; margin: 14px auto 0;
-  background: linear-gradient(90deg, transparent, var(--rojo) 30%, var(--rojo) 70%, transparent);
+.logo-caja {
+  display: inline-grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--rojo), var(--rojo-oscuro));
+  font-family: var(--exhibicion); font-size: 13px; font-weight: 700; color: #fff;
+  box-shadow: 0 4px 14px rgba(225, 6, 0, .35);
 }
-.acceso-coche { width: 100%; height: min(330px, 38vh); }
+.enlace-barra {
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  color: var(--tinta-suave);
+  padding: 8px 16px; border: 1px solid var(--borde-fuerte); border-radius: 6px;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.enlace-barra:hover { color: #fff; border-color: var(--rojo); background: rgba(225, 6, 0, .1); }
+
+.heroe {
+  display: grid; grid-template-columns: 1.15fr .85fr;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  max-width: 1240px; margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px) clamp(16px, 4vw, 48px) 8px;
+  min-height: calc(100vh - 63px);
+}
+.heroe-info { animation: aparecer .5s ease both; min-width: 0; }
+.lema-heroe {
+  margin: 0 0 10px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase;
+  color: var(--rojo-vivo); font-weight: 600;
+}
+.heroe-info h1 {
+  font-family: var(--exhibicion);
+  font-size: clamp(26px, 3.4vw, 42px); line-height: 1.12;
+  margin: 0 0 14px; text-transform: uppercase; letter-spacing: .02em; color: #fff;
+}
+.heroe-info h1 em { font-style: normal; color: var(--rojo-vivo); }
+.subtitulo { margin: 0; max-width: 54ch; color: var(--tinta-suave); font-size: 15px; }
+
+.heroe-coche { width: 100%; height: clamp(260px, 36vh, 380px); margin: 8px 0; }
+
+.metricas {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  margin: 4px 0 0; padding: 0;
+}
+.metricas div { border-left: 2px solid var(--rojo); padding-left: 14px; }
+.metricas dt {
+  font-family: var(--exhibicion); font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 700; color: #fff;
+}
+.metricas dd {
+  margin: 2px 0 0; font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--tinta-tenue);
+}
 
 .tarjeta-acceso {
-  background: var(--panel); padding: 34px; border-radius: 10px;
-  width: 100%; max-width: 380px;
+  padding: 34px; border-radius: var(--radio-grande);
+  width: 100%; max-width: 400px; justify-self: center;
   border: 1px solid var(--borde);
   border-top: 3px solid var(--rojo);
-  box-shadow: 0 14px 44px rgba(0, 0, 0, .6);
+  background: var(--panel);
+  box-shadow: var(--sombra-alta);
+  animation: aparecer .5s ease .12s both;
 }
-.tarjeta-acceso h1 {
-  margin: 0 0 4px; font-size: 22px; text-transform: uppercase; letter-spacing: .06em;
+/* Efecto vidrio: deja pasar el fondo desenfocado. */
+.tarjeta-acceso.vidrio {
+  background: rgba(23, 27, 34, .58);
+  backdrop-filter: blur(16px) saturate(1.25);
 }
-.tarjeta-acceso p { margin-top: 0; }
+.titulo-acceso {
+  margin: 0 0 4px; font-size: 20px;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+
+.servicios {
+  max-width: 1240px; margin: 0 auto;
+  padding: clamp(32px, 6vw, 72px) clamp(16px, 4vw, 48px);
+}
+.servicios h2 {
+  font-family: var(--exhibicion); text-transform: uppercase;
+  letter-spacing: .08em; font-size: 22px; margin: 0 0 22px;
+}
+.servicios h2::before {
+  content: ''; display: inline-block; width: 5px; height: 18px;
+  margin-right: 16px; background: var(--rojo);
+  box-shadow: 9px 0 0 -3px var(--borde-fuerte);
+}
+.rejilla-servicios {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
+}
+.tarjeta-servicio {
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: var(--radio-grande); padding: 24px;
+  animation: aparecer .5s ease both;
+  transition: transform .18s, border-color .18s, box-shadow .18s;
+}
+.tarjeta-servicio:hover {
+  transform: translateY(-4px);
+  border-color: var(--rojo-oscuro);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+}
+.icono-servicio {
+  width: 46px; height: 46px; border-radius: 10px;
+  display: grid; place-items: center; margin-bottom: 14px;
+  color: var(--rojo-vivo);
+  background: rgba(225, 6, 0, .1);
+  border: 1px solid rgba(225, 6, 0, .3);
+}
+.icono-servicio svg { width: 24px; height: 24px; }
+.tarjeta-servicio h3 { margin: 0 0 8px; font-size: 15px; }
+.tarjeta-servicio p { margin: 0; font-size: 13px; color: var(--tinta-suave); }
+
+.pie {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  max-width: 1240px; margin: 0 auto;
+  padding: 26px clamp(16px, 4vw, 48px) 36px;
+  border-top: 1px solid var(--borde);
+}
+.pie p { margin: 0; font-size: 12px; }
 
 /* Fondo estatico cuando no hay WebGL, o mientras carga la escena: una pista
    con lineas de velocidad. */
@@ -429,13 +560,18 @@ input:focus, select:focus {
   .maestro-detalle { flex-direction: column; }
   .maestro { width: 100%; }
   .encabezado h2 { font-size: 20px; }
-  .pantalla-acceso { align-content: center; }
-  .acceso-coche { height: 220px; }
+  .heroe { grid-template-columns: 1fr; min-height: 0; padding-top: 20px; }
+  .heroe-coche { height: 240px; }
+  .tarjeta-acceso { max-width: none; }
+  .metricas { gap: 10px; }
 }
 
 /* El movimiento decorativo se apaga para quien pidio menos movimiento;
    las transiciones funcionales (hover, foco) se quedan. */
 @media (prefers-reduced-motion: reduce) {
-  .indicador:hover, .tarjeta-orden:hover { transform: none; }
+  .indicador:hover, .tarjeta-orden:hover, .tarjeta-servicio:hover { transform: none; }
   button:active:not(:disabled) { transform: none; }
+  .encabezado, .indicadores, .panel, .aviso, .maestro-detalle, .linea-tiempo,
+  .heroe-info, .tarjeta-acceso, .tarjeta-servicio { animation: none; }
+  .hueso { animation: none; }
 }

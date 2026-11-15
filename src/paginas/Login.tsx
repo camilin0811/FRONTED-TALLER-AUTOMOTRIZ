@@ -4,6 +4,50 @@ import { useAutenticacion } from '../autenticacion/Contexto'
 import { AvisoError } from '../componentes/Aviso'
 import { CocheEscaparate } from '../componentes/CocheEscaparate'
 
+/** Tarjetas de la seccion de servicios. Los iconos son SVG en linea. */
+const SERVICIOS = [
+  {
+    titulo: 'Diagnóstico computarizado',
+    texto: 'Escáner OBD-II conectado a la orden: los códigos de falla se registran solos, sin transcripciones.',
+    icono: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="4" y="3" width="16" height="12" rx="2" />
+        <path d="M8 7h4M8 10h8M9 15v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2" />
+      </svg>
+    ),
+  },
+  {
+    titulo: 'Mantenimiento preventivo',
+    texto: 'Planes por kilometraje con recordatorio automático: el taller avisa antes de que la falla aparezca.',
+    icono: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.9 2.9-2.1-2.1 2.9-2.9Z" />
+      </svg>
+    ),
+  },
+  {
+    titulo: 'Preparación de competición',
+    texto: 'Puesta a punto de motor, frenos y suspensión con estándares de pista y control de cada ajuste.',
+    icono: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3.5 2M12 3v2M21 12h-2M12 21v-2M3 12h2" />
+      </svg>
+    ),
+  },
+  {
+    titulo: 'Motocicletas',
+    texto: 'Área dedicada con técnicos de dos ruedas: motor, transmisión final y electrónica de la moto.',
+    icono: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="5.5" cy="17" r="3.2" />
+        <circle cx="18.5" cy="17" r="3.2" />
+        <path d="M5.5 17 9 10h4l2.5 4M13 10l-1.5-3H9M15.5 14h3" />
+      </svg>
+    ),
+  },
+]
+
 export function Login() {
   const { entrar } = useAutenticacion()
   const navegar = useNavigate()
@@ -30,42 +74,94 @@ export function Login() {
   }
 
   return (
-    <div className="pantalla-acceso">
-      {/* El coche es presentacion pura: el formulario sigue siendo lo primero
-          para el teclado y el lector de pantalla. */}
-      <div className="acceso-marca">
-        <h1 className="titulo-marca">Taller <em>Automotriz</em></h1>
-        <p className="lema">Automoviles · Motocicletas · Competicion</p>
-        <div className="franjas" />
-        <CocheEscaparate className="acceso-coche" />
-      </div>
-
-      <form className="tarjeta-acceso" onSubmit={enviar}>
-        <h1>Pit de acceso</h1>
-        <p className="tenue">Ingrese con sus credenciales del taller.</p>
-
-        <AvisoError error={error} />
-
-        <div className="campo">
-          <label htmlFor="usuario">Usuario</label>
-          <input id="usuario" value={usuario} autoComplete="username" required autoFocus
-                 onChange={(e) => setUsuario(e.target.value)} />
+    <div className="landing">
+      <header className="barra-landing">
+        <div className="marca-barra">
+          <span className="logo-caja" aria-hidden>TA</span>
+          <span>Taller Automotriz</span>
         </div>
+        <a className="enlace-barra" href="/portal">Portal del cliente</a>
+      </header>
 
-        <div className="campo">
-          <label htmlFor="clave">Clave</label>
-          <input id="clave" type="password" value={clave} autoComplete="current-password" required
-                 onChange={(e) => setClave(e.target.value)} />
+      <main className="heroe">
+        <section className="heroe-info">
+          <p className="lema-heroe">Racing service · Automóviles y motocicletas</p>
+          <h1>
+            Precisión de competición <em>para tu vehículo</em>
+          </h1>
+          <p className="subtitulo">
+            Diagnóstico computarizado, mantenimiento y preparación con seguimiento
+            en línea de cada orden de trabajo.
+          </p>
+
+          <CocheEscaparate className="heroe-coche" />
+
+          <dl className="metricas">
+            <div>
+              <dt>12+</dt>
+              <dd>años de experiencia</dd>
+            </div>
+            <div>
+              <dt>4.800</dt>
+              <dd>vehículos atendidos</dd>
+            </div>
+            <div>
+              <dt>48 h</dt>
+              <dd>tiempo promedio de servicio</dd>
+            </div>
+          </dl>
+        </section>
+
+        <form className="tarjeta-acceso vidrio" onSubmit={enviar}>
+          <h2 className="titulo-acceso">Pit de acceso</h2>
+          <p className="tenue">Ingrese con sus credenciales del taller.</p>
+
+          <AvisoError error={error} />
+
+          <div className="campo">
+            <label htmlFor="usuario">Usuario</label>
+            <input id="usuario" value={usuario} autoComplete="username" required
+                   onChange={(e) => setUsuario(e.target.value)} />
+          </div>
+
+          <div className="campo">
+            <label htmlFor="clave">Clave</label>
+            <input id="clave" type="password" value={clave} autoComplete="current-password" required
+                   onChange={(e) => setClave(e.target.value)} />
+          </div>
+
+          <button className="primario" type="submit" disabled={entrando} style={{ width: '100%' }}>
+            {entrando ? 'Entrando…' : 'Entrar'}
+          </button>
+
+          <p className="tenue" style={{ marginTop: 18, textAlign: 'center', marginBottom: 0 }}>
+            ¿Es cliente? <a href="/portal">Consulte su vehículo aquí</a>
+          </p>
+        </form>
+      </main>
+
+      <section className="servicios" aria-labelledby="titulo-servicios">
+        <h2 id="titulo-servicios">Servicios</h2>
+        <div className="rejilla-servicios">
+          {SERVICIOS.map((s, i) => (
+            <article className="tarjeta-servicio" key={s.titulo} style={{ animationDelay: `${i * 90}ms` }}>
+              <div className="icono-servicio">{s.icono}</div>
+              <h3>{s.titulo}</h3>
+              <p>{s.texto}</p>
+            </article>
+          ))}
         </div>
+      </section>
 
-        <button className="primario" type="submit" disabled={entrando} style={{ width: '100%' }}>
-          {entrando ? 'Entrando…' : 'Entrar'}
-        </button>
-
-        <p className="tenue" style={{ marginTop: 18, textAlign: 'center' }}>
-          ¿Es cliente? <a href="/portal">Consulte su vehículo aquí</a>
+      <footer className="pie">
+        <div className="marca-barra">
+          <span className="logo-caja" aria-hidden>TA</span>
+          <span>Taller Automotriz</span>
+        </div>
+        <p className="tenue">
+          Sistema de gestión del taller · <a href="/portal">Consulta de órdenes</a>
         </p>
-      </form>
+      </footer>
     </div>
   )
 }
