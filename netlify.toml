@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# El enrutado es del lado del cliente: sin esta regla, recargar /recepcion
+# o compartir el enlace de una orden devuelve 404, porque esas rutas no
+# existen como archivos en el servidor.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
