@@ -54,8 +54,8 @@ export function Inventario() {
                 <td className="numero">{dinero(r.precio)}</td>
               </tr>
               {abierto === r.codigo && (
-                <tr>
-                  <td colSpan={5} style={{ background: '#fbfcfd' }}>
+                <tr className="fila-detalle">
+                  <td colSpan={5}>
                     <strong>Movimientos</strong>
                     {movimientos.length === 0 ? (
                       <p className="tenue">Sin movimientos registrados.</p>

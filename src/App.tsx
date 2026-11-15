@@ -58,7 +58,8 @@ function Lateral() {
 
   return (
     <aside className="lateral">
-      <h1>TALLER</h1>
+      <h1>Taller</h1>
+      <p className="lema">Racing service</p>
       <nav>
         {/* El menu solo muestra lo que el rol puede abrir. Quien decide de
             verdad es el backend; esto evita callejones sin salida. */}
