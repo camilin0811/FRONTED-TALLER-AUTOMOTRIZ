@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ordenes } from '../api/servicios'
-import type { OrdenDetalle, OrdenResumen } from '../api/tipos'
+import { publico } from '../api/servicios'
+import type { OrdenDetalle } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
 import { Aviso, AvisoError } from '../componentes/Aviso'
+import { ErrorApi } from '../api/cliente'
 import { LineaTiempo } from '../componentes/LineaTiempo'
 import { dinero, fecha } from '../formato'
 
@@ -14,6 +15,7 @@ import { dinero, fecha } from '../formato'
  */
 export function PortalCliente() {
   const [placa, setPlaca] = useState('')
+  const [documento, setDocumento] = useState('')
   const [orden, setOrden] = useState<OrdenDetalle | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [buscando, setBuscando] = useState(false)
@@ -26,13 +28,12 @@ export function PortalCliente() {
     setOrden(null)
     setSinResultado(false)
     try {
-      const lista: OrdenResumen[] = await ordenes.listar({ placa: placa.trim().toUpperCase() })
-      if (lista.length === 0) { setSinResultado(true); return }
-      // La más reciente es la que al cliente le interesa.
-      const reciente = [...lista].sort((a, b) => b.fechaIngreso.localeCompare(a.fechaIngreso))[0]
-      setOrden(await ordenes.detalle(reciente.id))
+      // Exige placa y documento: solo con la placa, cualquiera podría ver
+      // cuánto paga un tercero por su reparación.
+      setOrden(await publico.consultarOrden(placa.trim().toUpperCase(), documento.trim()))
     } catch (e) {
-      setError(e)
+      if (e instanceof ErrorApi && e.status === 404) setSinResultado(true)
+      else setError(e)
     } finally {
       setBuscando(false)
     }
@@ -43,13 +44,20 @@ export function PortalCliente() {
       <div className="portal-barra">Taller Automotriz · Portal del Cliente</div>
       <div className="portal">
         <h2>Consulte su vehículo</h2>
-        <p className="tenue">Ingrese la placa para ver el estado de su orden.</p>
+        <p className="tenue">
+          Ingrese la placa y su número de documento para ver el estado de su orden.
+        </p>
 
         <form onSubmit={buscar} className="fila" style={{ alignItems: 'flex-end', marginBottom: 20 }}>
           <div>
             <label htmlFor="placa">Placa</label>
             <input id="placa" value={placa} placeholder="ABC123" required
                    onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+          </div>
+          <div>
+            <label htmlFor="documento">Documento del titular</label>
+            <input id="documento" value={documento} placeholder="10000001" required
+                   onChange={(e) => setDocumento(e.target.value)} />
           </div>
           <button className="primario" type="submit" disabled={buscando} style={{ flex: '0 0 auto' }}>
             {buscando ? 'Buscando…' : 'Consultar'}
@@ -58,8 +66,8 @@ export function PortalCliente() {
 
         <AvisoError error={error} />
         {sinResultado && (
-          <Aviso tono="info" titulo="No encontramos órdenes para esa placa">
-            Verifique el número o comuníquese con el taller.
+          <Aviso tono="info" titulo="No encontramos órdenes con esos datos">
+            Verifique la placa y el documento del titular, o comuníquese con el taller.
           </Aviso>
         )}
 

@@ -1,8 +1,23 @@
 import { api } from './cliente'
 import type {
   Mecanico, Movimiento, OrdenCompra, OrdenDetalle, OrdenResumen,
-  Repuesto, Servicio, EstadoOrden, CanalAprobacion,
+  Repuesto, Servicio, EstadoOrden, CanalAprobacion, Token,
 } from './tipos'
+
+export const autenticacion = {
+  login: (usuario: string, clave: string) =>
+    api.post<Token>('/auth/login', { usuario, clave }),
+  yo: () => api.get<{ usuario: string; nombre: string; rol: string; permisos: string[] }>('/auth/yo'),
+  cambiarClave: (claveActual: string, claveNueva: string) =>
+    api.post<void>('/auth/clave', { claveActual, claveNueva }),
+}
+
+/** Unico endpoint sin token: exige placa y documento del titular. */
+export const publico = {
+  consultarOrden: (placa: string, documento: string) =>
+    api.get<OrdenDetalle>(
+      `/publico/orden?placa=${encodeURIComponent(placa)}&documento=${encodeURIComponent(documento)}`),
+}
 
 export const ordenes = {
   listar: (filtro: { estado?: EstadoOrden; placa?: string } = {}) => {

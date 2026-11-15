@@ -18,6 +18,16 @@ export type EstadoOrden =
   | 'ENTREGADA'
 
 export type TipoVehiculo = 'AUTOMOVIL' | 'MOTOCICLETA'
+export type Rol = 'CLIENTE' | 'MECANICO' | 'RECEPCIONISTA' | 'ADMINISTRADOR'
+
+export interface Token {
+  token: string
+  tipo: string
+  expiraEnSegundos: number
+  usuario: string
+  rol: Rol
+  nombre: string
+}
 export type CanalAprobacion = 'WHATSAPP' | 'PORTAL_WEB' | 'PRESENCIAL'
 
 export interface OrdenResumen {

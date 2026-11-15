@@ -1,4 +1,5 @@
 import type { CuerpoError } from './tipos'
+import { tokenActual } from '../autenticacion/sesion'
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1'
 
@@ -38,13 +39,14 @@ export class ErrorApi extends Error {
 }
 
 async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+  const token = tokenActual()
   let respuesta: Response
   try {
     respuesta = await fetch(`${BASE}${ruta}`, {
       ...opciones,
       headers: {
         'Content-Type': 'application/json',
-        'X-Usuario': 'recepcion01',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...opciones.headers,
       },
     })
@@ -62,6 +64,11 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
 
   if (!respuesta.ok) {
     const e = cuerpo as CuerpoError | null
+    // Token vencido o revocado: se avisa para que la sesion se cierre sola
+    // en vez de dejar al usuario ante errores que no puede interpretar.
+    if (respuesta.status === 401) {
+      window.dispatchEvent(new Event('sesion-expirada'))
+    }
     throw new ErrorApi(
       respuesta.status,
       e?.codigo ?? 'ERROR_DESCONOCIDO',

@@ -225,3 +225,32 @@ input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: -1
   .maestro-detalle { flex-direction: column; }
   .maestro { width: 100%; }
 }
+
+/* ------------------------------------------------------------- acceso */
+
+.pantalla-acceso {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--oscuro); padding: 20px;
+}
+.tarjeta-acceso {
+  background: var(--fondo); padding: 34px; border-radius: 8px;
+  width: 100%; max-width: 380px; box-shadow: 0 8px 28px rgba(0, 0, 0, .22);
+}
+.tarjeta-acceso h1 { margin: 0 0 4px; font-size: 20px; }
+.tarjeta-acceso p { margin-top: 0; }
+
+/* ------------------------------------------------- usuario en el menu */
+
+.lateral .usuario {
+  margin-top: 28px; padding: 14px 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+}
+.lateral .usuario .nombre { font-size: 13px; color: #fff; }
+.lateral .usuario .rol {
+  font-size: 10px; letter-spacing: .06em; color: #90a0ac; margin-bottom: 10px;
+}
+.lateral .usuario .salir {
+  background: transparent; border: 1px solid rgba(255, 255, 255, .25);
+  color: #d7dee3; font-size: 12px; padding: 6px 12px; width: 100%;
+}
+.lateral .usuario .salir:hover { background: rgba(255, 255, 255, .1); }
