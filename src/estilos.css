@@ -298,6 +298,24 @@ input:focus, select:focus {
   border: 1px solid var(--borde); border-top: 2px solid var(--aviso-tinta);
 }
 
+/* Aviso de servidor dormido: aparece si el login tarda mas de 3 segundos. */
+.arrancando {
+  display: flex; gap: 14px; align-items: flex-start;
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--aviso-fondo); border: 1px solid var(--aviso-borde);
+  border-radius: var(--radio); color: var(--aviso-tinta);
+  animation: aparecer .3s ease both;
+}
+.arrancando p { margin: 4px 0 0; font-size: 12.5px; color: var(--tinta-suave); }
+.girando {
+  flex-shrink: 0; width: 22px; height: 22px; margin-top: 2px;
+  border-radius: 50%;
+  border: 3px solid rgba(251, 191, 36, .25);
+  border-top-color: var(--aviso-tinta);
+  animation: girar .9s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
 /* -------------------------------------------------- carga y vacios */
 
 .cargando { padding: 36px; text-align: center; color: var(--tinta-tenue); }
@@ -574,4 +592,6 @@ input:focus, select:focus {
   .encabezado, .indicadores, .panel, .aviso, .maestro-detalle, .linea-tiempo,
   .heroe-info, .tarjeta-acceso, .tarjeta-servicio { animation: none; }
   .hueso { animation: none; }
+  /* La rueda deja de girar pero el anillo queda visible: el texto ya informa. */
+  .girando { animation: none; }
 }

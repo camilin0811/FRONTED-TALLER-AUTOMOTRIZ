@@ -4,6 +4,23 @@ import { tokenActual } from '../autenticacion/sesion'
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1'
 
 /**
+ * Despierta al servidor sin molestar a nadie.
+ *
+ * El plan gratuito de Render duerme el backend tras 15 minutos sin trafico
+ * y despertarlo tarda cerca de un minuto. Este ping sale apenas carga la
+ * aplicacion, de modo que el servidor arranca mientras el usuario todavia
+ * esta escribiendo sus credenciales.
+ *
+ * mode no-cors: la respuesta no se lee (no hace falta) y asi el navegador
+ * no ensucia la consola si el actuator no comparte las cabeceras CORS.
+ */
+export function despertarServidor(): void {
+  const raiz = BASE.replace(/\/api\/v1\/?$/, '')
+  fetch(`${raiz}/actuator/health`, { mode: 'no-cors', cache: 'no-store' })
+    .catch(() => { /* si falla, el login ya mostrara su propio aviso */ })
+}
+
+/**
  * Error de la API con el codigo estable que define el backend.
  *
  * Se conserva `codigo` separado de `mensaje` a proposito: la interfaz decide

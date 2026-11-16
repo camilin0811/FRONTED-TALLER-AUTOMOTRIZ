@@ -56,6 +56,9 @@ export function Login() {
   const [clave, setClave] = useState('')
   const [error, setError] = useState<unknown>(null)
   const [entrando, setEntrando] = useState(false)
+  // true cuando la peticion lleva mas de 3 segundos: el servidor del plan
+  // gratuito estaba dormido y esta arrancando.
+  const [arrancando, setArrancando] = useState(false)
 
   const destino = (ubicacion.state as { desde?: string } | null)?.desde ?? '/recepcion'
 
@@ -63,12 +66,15 @@ export function Login() {
     ev.preventDefault()
     setEntrando(true)
     setError(null)
+    const avisoLento = window.setTimeout(() => setArrancando(true), 3000)
     try {
       await entrar(usuario, clave)
       navegar(destino, { replace: true })
     } catch (e) {
       setError(e)
     } finally {
+      window.clearTimeout(avisoLento)
+      setArrancando(false)
       setEntrando(false)
     }
   }
@@ -133,6 +139,19 @@ export function Login() {
           <button className="primario" type="submit" disabled={entrando} style={{ width: '100%' }}>
             {entrando ? 'Entrando…' : 'Entrar'}
           </button>
+
+          {arrancando && (
+            <div className="arrancando" role="status">
+              <span className="girando" aria-hidden />
+              <div>
+                <strong>Encendiendo motores…</strong>
+                <p>
+                  El servidor estaba en reposo y está arrancando. Puede tardar
+                  hasta un minuto; no cierre la página.
+                </p>
+              </div>
+            </div>
+          )}
 
           <p className="tenue" style={{ marginTop: 18, textAlign: 'center', marginBottom: 0 }}>
             ¿Es cliente? <a href="/portal">Consulte su vehículo aquí</a>
