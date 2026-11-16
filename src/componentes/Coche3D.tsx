@@ -2,8 +2,8 @@ import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { ContactShadows, Environment, MeshReflectorMaterial, useGLTF } from '@react-three/drei'
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
-import { Box3, Group as GrupoTres, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three'
-import type { Group, Material, Mesh, Object3D } from 'three'
+import { Box3, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three'
+import type { Group, Material, Mesh } from 'three'
 
 /**
  * Vitrina 3D del taller: un deportivo CC0 (Quaternius, via Poly Pizza) con
@@ -63,9 +63,9 @@ function materialPara(nombre: string): Material | null {
 function Deportivo({ animado }: { animado: boolean }) {
   const gltf = useGLTF(MODELO, DRACO)
   const plato = useRef<Group>(null)
-  const ruedas = useRef<Object3D[]>([])
-  // 'z' si el coche corre a lo largo de X; 'x' si corre a lo largo de Z.
-  const ejeRueda = useRef<'x' | 'z'>('z')
+  const ruedas = useRef<Mesh[]>([])
+  // Eje del giro de las ruedas, en el espacio local del modelo.
+  const ejeRueda = useRef<'x' | 'z'>('x')
 
   // Clon propio: varias instancias (acceso y portal) no deben compartir
   // transformaciones ni materiales.
@@ -95,28 +95,40 @@ function Deportivo({ animado }: { animado: boolean }) {
     const centro = caja.getCenter(new Vector3())
     escena.position.set(-centro.x, -caja.min.y, -centro.z)
 
-    ejeRueda.current = tamano.x >= tamano.z ? 'z' : 'x'
-
-    // Las ruedas del modelo no traen el pivote en su eje: girarlas tal cual
-    // las haria orbitar fuera del guardabarros. Cada una se cuelga de un
-    // grupo nuevo centrado en su caja envolvente, y se gira el grupo.
-    escena.updateMatrixWorld(true)
+    // Ruedas: el pivote se hornea en la geometria. El origen de cada malla
+    // pasa a ser el centro de su propia rueda y la posicion lo compensa,
+    // de modo que girar la malla es girar sobre el eje real. Todo ocurre en
+    // el espacio local del modelo: ninguna rotacion del plato ni matriz de
+    // mundo puede contaminar el calculo (el enfoque anterior, con grupos
+    // colocados a partir de cajas en coordenadas de mundo, hacia orbitar a
+    // las ruedas traseras como una helice).
     ruedas.current = []
-    const nodosRueda: Object3D[] = []
     escena.traverse((objeto) => {
-      if (/wheel/i.test(objeto.name)) nodosRueda.push(objeto)
+      const malla = objeto as Mesh
+      if (!malla.isMesh || !/wheel/i.test(malla.name)) return
+      if (!malla.userData.pivoteHorneado) {
+        // La geometria se clona: el GLB cacheado la comparte entre las
+        // instancias del acceso y del portal, y trasladarla dos veces la
+        // descolocaria.
+        malla.geometry = malla.geometry.clone()
+        malla.geometry.computeBoundingBox()
+        const cajaRueda = malla.geometry.boundingBox
+        if (!cajaRueda) return
+        const centroRueda = cajaRueda.getCenter(new Vector3())
+        malla.geometry.translate(-centroRueda.x, -centroRueda.y, -centroRueda.z)
+        malla.position.add(centroRueda)
+        malla.userData.pivoteHorneado = true
+
+        // El eje del giro es la dimension mas corta de una rueda suelta
+        // (el espesor del cilindro). El nodo trasero trae las dos ruedas
+        // juntas, asi que solo las delanteras sirven para medirlo.
+        if (/front/i.test(malla.name)) {
+          const dim = cajaRueda.getSize(new Vector3())
+          ejeRueda.current = dim.x <= dim.z ? 'x' : 'z'
+        }
+      }
+      ruedas.current.push(malla)
     })
-    for (const rueda of nodosRueda) {
-      const padre = rueda.parent
-      if (!padre) continue
-      const centro = new Box3().setFromObject(rueda).getCenter(new Vector3())
-      padre.worldToLocal(centro)
-      const pivote = new GrupoTres()
-      pivote.position.copy(centro)
-      padre.add(pivote)
-      pivote.attach(rueda)
-      ruedas.current.push(pivote)
-    }
   }, [escena])
 
   useFrame((estado, delta) => {
