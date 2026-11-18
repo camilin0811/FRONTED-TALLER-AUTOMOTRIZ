@@ -1,5 +1,6 @@
 import { ETIQUETA_ROL } from '../estados'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
+import { inicioDe } from './inicio'
 import { useAutenticacion } from './Contexto'
 import type { Rol } from '../api/tipos'
 import { Aviso } from '../componentes/Aviso'
@@ -20,9 +21,12 @@ export function Guarda({ roles, children }: { roles?: Rol[]; children: React.Rea
 
   if (roles && !roles.includes(sesion.rol)) {
     return (
-      <Aviso tono="error" titulo="Sin permiso">
-        Su rol ({ETIQUETA_ROL[sesion.rol]}) no tiene acceso a esta pantalla.
-      </Aviso>
+      <>
+        <Aviso tono="error" titulo="Sin permiso">
+          Su rol ({ETIQUETA_ROL[sesion.rol]}) no tiene acceso a esta pantalla.
+        </Aviso>
+        <Link to={inicioDe(sesion.rol)} className="boton-enlace primario">Volver al tablero</Link>
+      </>
     )
   }
 

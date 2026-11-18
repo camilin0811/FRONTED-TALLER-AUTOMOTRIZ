@@ -1,6 +1,9 @@
-import { etiquetaEstado } from '../estados'
+import { ETIQUETA_COTIZACION } from '../estados'
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import type { EstadoOrden } from '../api/tipos'
+import { useAutenticacion } from '../autenticacion/Contexto'
+import { inicioDe } from '../autenticacion/inicio'
 import { ordenes, personal } from '../api/servicios'
 import type { Mecanico, OrdenDetalle as Orden } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
@@ -9,8 +12,21 @@ import { Cargando } from '../componentes/Cargando'
 import { LineaTiempo } from '../componentes/LineaTiempo'
 import { dinero, fechaHora } from '../formato'
 
+/**
+ * Estados en los que la recepcion no tiene nada que hacer, y quien debe dar
+ * el siguiente paso. Mostrarlo evita un recuadro de acciones vacio.
+ */
+const SIGUIENTE_PASO: Partial<Record<EstadoOrden, string>> = {
+  EN_REPARACION: 'El mecánico asignado debe cerrar la orden cuando termine el trabajo, '
+    + 'o marcarla en espera de repuesto si le falta alguno.',
+  CERRADA: 'La factura se genera automáticamente al cerrar la orden; en unos momentos '
+    + 'pasará a «Facturada» y podrá registrar la entrega.',
+  ENTREGADA: 'La orden fue entregada al cliente y quedó en solo lectura.',
+}
+
 export function DetalleOrden() {
   const { id = '' } = useParams()
+  const { sesion } = useAutenticacion()
   const navegar = useNavigate()
   const [orden, setOrden] = useState<Orden | null>(null)
   const [mecanicos, setMecanicos] = useState<Mecanico[]>([])
@@ -40,7 +56,15 @@ export function DetalleOrden() {
     }
   }
 
-  if (!orden) return error ? <AvisoError error={error} /> : <Cargando que="la orden" />
+  if (!orden) {
+    if (!error) return <Cargando que="la orden" />
+    return (
+      <>
+        <AvisoError error={error} />
+        <Link to={inicioDe(sesion?.rol)} className="boton-enlace primario">Volver al tablero</Link>
+      </>
+    )
+  }
 
   const e = orden.estado
 
@@ -58,7 +82,7 @@ export function DetalleOrden() {
 
       <p className="tenue">
         {orden.descripcionVehiculo} · {orden.placa} · ingreso {fechaHora(orden.fechaIngreso)} ·
-        {' '}{orden.kilometrajeIngreso.toLocaleString('es-CO')} km · cliente {orden.cliente}
+        {' '}{orden.kilometrajeIngreso.toLocaleString('es-CO')} km · Cliente: {orden.cliente}
       </p>
 
       <AvisoError error={error} />
@@ -102,15 +126,19 @@ export function DetalleOrden() {
 
       {orden.numeroCotizacion && (
         <Aviso tono={orden.estadoCotizacion === 'APROBADA' ? 'exito' : 'info'}>
-          Cotización <strong>{orden.numeroCotizacion}</strong> · {orden.estadoCotizacion}
+          Cotización <strong>{orden.numeroCotizacion}</strong>
+          {orden.estadoCotizacion && <> · {ETIQUETA_COTIZACION[orden.estadoCotizacion] ?? orden.estadoCotizacion}</>}
         </Aviso>
       )}
 
       <div className="panel">
         <h3>Acciones disponibles</h3>
-        <p className="tenue" style={{ marginTop: -6 }}>
-          Solo se muestran las transiciones que la máquina de estados permite desde «{etiquetaEstado(e)}».
-        </p>
+        {SIGUIENTE_PASO[e] ? (
+          <>
+            <p style={{ margin: '0 0 4px' }}>No hay acciones disponibles para su rol en este estado.</p>
+            <p className="tenue" style={{ margin: 0 }}>{SIGUIENTE_PASO[e]}</p>
+          </>
+        ) : (
         <div className="acciones">
           {e === 'RECIBIDA' && (
             <button className="primario" disabled={ocupado} onClick={() => ejecutar(() =>
@@ -168,13 +196,6 @@ export function DetalleOrden() {
             </button>
           )}
 
-          {e === 'CERRADA' && (
-            <Aviso tono="info">
-              La facturación ante la DIAN se dispara sola al cerrar la orden. Si tarda,
-              revise las facturas pendientes de envío.
-            </Aviso>
-          )}
-
           {(e === 'FACTURADA' || e === 'RECHAZADA') && (
             <button className="exito" disabled={ocupado} onClick={() =>
               ejecutar(() => ordenes.transicionar(orden.id, 'ENTREGADA'))}>
@@ -182,10 +203,8 @@ export function DetalleOrden() {
             </button>
           )}
 
-          {e === 'ENTREGADA' && (
-            <Aviso tono="exito">Orden entregada. Queda en solo lectura.</Aviso>
-          )}
         </div>
+        )}
       </div>
     </>
   )
