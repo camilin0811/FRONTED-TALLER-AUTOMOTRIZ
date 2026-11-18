@@ -1,3 +1,4 @@
+import { coincide } from '../texto'
 import { EN_PROCESO, POR_ENTREGAR, etiquetaEstado } from '../estados'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { useEffect, useMemo, useState } from 'react'
@@ -58,13 +59,9 @@ export function PanelRecepcion() {
   }, [])
 
   const visibles = useMemo(() => {
-    const texto = busqueda.trim().toUpperCase()
     return lista
       .filter((o) => cumpleFiltro(o.estado, filtro))
-      .filter((o) => !texto
-        || o.placa?.toUpperCase().includes(texto)
-        || o.numero?.toUpperCase().includes(texto)
-        || o.cliente?.toUpperCase().includes(texto))
+      .filter((o) => coincide(busqueda, o.placa, o.numero, o.cliente, o.descripcionVehiculo, o.mecanico))
       .sort((a, b) => b.fechaIngreso.localeCompare(a.fechaIngreso))
   }, [lista, filtro, busqueda])
 
@@ -156,7 +153,7 @@ export function PanelRecepcion() {
           <tbody>
             {visibles.map((o) => (
               <tr key={o.id} className="clicable" onClick={() => navegar(`/ordenes/${o.id}`)}>
-                <td><strong>{o.numero ?? '—'}</strong></td>
+                <td className="nowrap"><strong>{o.numero ?? '—'}</strong></td>
                 <td>{o.descripcionVehiculo} · {o.placa}</td>
                 <td>{o.cliente ?? '—'}</td>
                 <td><Estado valor={o.estado} /></td>

@@ -1,3 +1,4 @@
+import { coincide } from '../texto'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useAccionConfirmada } from '../componentes/interaccion'
 import { useAutenticacion } from '../autenticacion/Contexto'
@@ -22,10 +23,9 @@ export function Inventario() {
   const [soloBajoMinimo, setSoloBajoMinimo] = useState(false)
 
   const visibles = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
     return repuestos
       .filter((r) => !soloBajoMinimo || r.stock <= r.stockMinimo)
-      .filter((r) => !texto || r.codigo.toLowerCase().includes(texto) || r.nombre.toLowerCase().includes(texto))
+      .filter((r) => coincide(busqueda, r.codigo, r.nombre))
   }, [repuestos, busqueda, soloBajoMinimo])
 
   /** Tras cada paso se refresca la orden y el stock, que la recepcion cambia. */
@@ -57,8 +57,11 @@ export function Inventario() {
       <div className="fila filtros-inventario">
         <input type="search" placeholder="Buscar por código o nombre" value={busqueda}
                onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar repuestos por código o nombre" />
-        <label className="interruptor">
-          <input type="checkbox" checked={soloBajoMinimo} onChange={(e) => setSoloBajoMinimo(e.target.checked)} />
+        {/* Envuelto y enlazado por id: el lector de pantalla anuncia
+            "Solo bajo mínimo", no el valor "on". */}
+        <label className="interruptor" htmlFor="solo-bajo-minimo">
+          <input id="solo-bajo-minimo" type="checkbox" checked={soloBajoMinimo}
+                 onChange={(e) => setSoloBajoMinimo(e.target.checked)} />
           Solo bajo mínimo
         </label>
       </div>
@@ -180,11 +183,10 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
   const valida = Number.isInteger(numero) && numero > 0 && (!recibible || numero <= pendiente)
 
   async function ejecutar(
-    opciones: { titulo: string; mensaje: string; confirmar: string; exito: string },
+    opciones: { titulo: string; mensaje: React.ReactNode; confirmar: string; exito: string },
     accion: () => Promise<OrdenCompra>,
   ) {
-    setOcupado(true)
-    const actualizada = await ejecutarConfirmado(opciones, accion)
+    const actualizada = await ejecutarConfirmado({ ...opciones, alConfirmar: () => setOcupado(true) }, accion)
     setOcupado(false)
     if (!actualizada) return
     alActualizar(actualizada)
@@ -195,8 +197,8 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
   return (
     <>
       <tr>
-        <td><strong>{compra.numero}</strong></td>
-        <td>{fecha(compra.fecha)}</td>
+        <td className="nowrap"><strong>{compra.numero}</strong></td>
+        <td className="nowrap">{fecha(compra.fecha)}</td>
         <td>{compra.generadaPor ?? <span className="tenue">Automática</span>}</td>
         <td><span className={`estado ${TONO_COMPRA[compra.estado]}`}>{ETIQUETA_COMPRA[compra.estado]}</span></td>
         <td className="codigos">{item?.codigoRepuesto ?? '—'}</td>
@@ -213,7 +215,7 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
                   <button className="secundario" disabled={ocupado || !valida || numero === item.cantidad}
                           onClick={() => ejecutar({
                             titulo: 'Cambiar cantidad', confirmar: 'Guardar cantidad',
-                            mensaje: `La orden ${compra.numero} pedirá ${numero} unidades de ${item.codigoRepuesto} en lugar de ${item.cantidad}.`,
+                            mensaje: <>La orden <span className="nowrap">{compra.numero}</span> pedirá {numero} unidades de {item.codigoRepuesto} en lugar de {item.cantidad}.</>,
                             exito: `Cantidad actualizada a ${numero}.`,
                           }, () => inventario.ajustarCantidad(compra.id, item.codigoRepuesto, numero))}>
                     Guardar cantidad
@@ -222,8 +224,8 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
                           title={numero !== item.cantidad ? 'Guarde la cantidad antes de enviar' : undefined}
                           onClick={() => ejecutar({
                             titulo: 'Enviar al proveedor', confirmar: 'Enviar',
-                            mensaje: `Se enviará la orden ${compra.numero} por ${item.cantidad} unidades de ${item.codigoRepuesto}. `
-                              + 'Después de enviarla ya no se puede editar.',
+                            mensaje: <>Se enviará la orden <span className="nowrap">{compra.numero}</span> por {item.cantidad} unidades
+                              de {item.codigoRepuesto}. Después de enviarla ya no se puede editar.</>,
                             exito: `Orden ${compra.numero} enviada al proveedor.`,
                           }, () => inventario.enviarCompra(compra.id))}>
                     Enviar al proveedor
