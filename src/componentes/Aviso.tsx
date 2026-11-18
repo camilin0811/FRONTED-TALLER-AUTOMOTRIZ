@@ -20,10 +20,12 @@ export function Aviso(
 }
 
 /**
- * Muestra un error de la API tal como lo redacto el backend.
+ * Muestra un error de la API.
  *
- * No se reescribe el mensaje: el backend ya explica que paso y con que dato
- * concreto, por ejemplo el saldo real pendiente o las transiciones validas.
+ * Los 4xx se muestran tal como los redacto el servidor: explican que paso y
+ * con que dato concreto, por ejemplo el saldo pendiente o las transiciones
+ * validas. Los 5xx y los fallos de red ya llegan con un mensaje amable desde
+ * el cliente de la API, sin detalles tecnicos.
  */
 export function AvisoError({ error }: { error: unknown }) {
   if (!error) return null
@@ -41,19 +43,28 @@ export function AvisoError({ error }: { error: unknown }) {
         ) : (
           error.message
         )}
-        {error.correlacionId && (
+        {/* El identificador solo sirve para reportar fallas del servidor; en
+            un error de datos o de limite es ruido tecnico para el cliente. */}
+        {error.esDelServidor && error.correlacionId && (
           <div className="codigo">{error.codigo} · correlación {error.correlacionId}</div>
         )}
       </Aviso>
     )
   }
 
-  return <Aviso tono="error" titulo="Error inesperado">{String(error)}</Aviso>
+  return (
+    <Aviso tono="error" titulo="Algo salió mal">
+      Ocurrió un error inesperado. Recargue la página e intente de nuevo.
+    </Aviso>
+  )
 }
 
 function tituloDe(error: ErrorApi): string {
   switch (error.codigo) {
-    case 'SIN_CONEXION': return 'Sin conexión con el servidor'
+    case 'SIN_CONEXION': return 'Sin conexión'
+    case 'SERVICIO_NO_DISPONIBLE': return 'Servicio no disponible'
+    case 'DEMASIADAS_SOLICITUDES': return 'Demasiadas consultas seguidas'
+    case 'CREDENCIALES_INVALIDAS': return 'Usuario o clave incorrectos'
     case 'VALIDACION': return 'Revise los datos ingresados'
     case 'TRANSICION_INVALIDA': return 'Ese cambio de estado no es posible'
     case 'STOCK_INSUFICIENTE': return 'No hay stock suficiente'

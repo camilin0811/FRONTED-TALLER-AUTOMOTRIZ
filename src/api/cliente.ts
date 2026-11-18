@@ -48,6 +48,13 @@ export class ErrorApi extends Error {
     this.correlacionId = correlacionId
   }
 
+  /** No hubo respuesta: sin internet, servidor caido o bloqueado en el camino. */
+  get esDeRed(): boolean { return this.status === 0 }
+  /** El servidor rechazo la peticion por algo de la peticion (dato, permiso, limite). */
+  get esDelCliente(): boolean { return this.status >= 400 && this.status < 500 }
+  /** El servidor fallo o no esta disponible: no es culpa de quien consulta. */
+  get esDelServidor(): boolean { return this.status >= 500 }
+
   /** Errores de validacion: un mapa campo -> mensaje. */
   get erroresDeCampo(): Record<string, string> {
     if (this.codigo !== 'VALIDACION' || !this.detalle) return {}
@@ -69,17 +76,32 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
     })
   } catch {
     // Distinguir "el servidor dijo que no" de "no hubo servidor" importa:
-    // el usuario necesita saber si debe arreglar el dato o llamar a soporte.
+    // el usuario necesita saber si debe arreglar el dato o reintentar.
+    // Tambien cae aqui una respuesta bloqueada en el camino sin cabeceras
+    // CORS: para el navegador es indistinguible de no tener conexion.
     throw new ErrorApi(0, 'SIN_CONEXION',
-      'No se pudo contactar el servidor. Verifique que el backend este en ejecucion.')
+      'No pudimos comunicarnos con el taller. Revise su conexión a internet e intente de nuevo.')
   }
 
   if (respuesta.status === 204) return undefined as T
 
+  // Un proxy o un firewall pueden responder HTML en lugar de JSON: leerlo
+  // como JSON reventaria con un error ilegible para el usuario.
   const texto = await respuesta.text()
-  const cuerpo = texto ? JSON.parse(texto) : null
+  let cuerpo: unknown = null
+  try {
+    cuerpo = texto ? JSON.parse(texto) : null
+  } catch {
+    cuerpo = null
+  }
 
   if (!respuesta.ok) {
+    if (respuesta.status >= 500) {
+      // El detalle tecnico de un 5xx no le sirve a quien consulta.
+      throw new ErrorApi(respuesta.status, 'SERVICIO_NO_DISPONIBLE',
+        'El servicio no está disponible en este momento. Intente de nuevo en unos minutos.',
+        undefined, (cuerpo as CuerpoError | null)?.correlacionId)
+    }
     const e = cuerpo as CuerpoError | null
     // Token vencido o revocado: se avisa para que la sesion se cierre sola
     // en vez de dejar al usuario ante errores que no puede interpretar.
@@ -89,7 +111,7 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
     throw new ErrorApi(
       respuesta.status,
       e?.codigo ?? 'ERROR_DESCONOCIDO',
-      e?.mensaje ?? `El servidor respondio ${respuesta.status}`,
+      e?.mensaje ?? 'No se pudo completar la solicitud. Revise los datos e intente de nuevo.',
       e?.detalle,
       e?.correlacionId,
     )
