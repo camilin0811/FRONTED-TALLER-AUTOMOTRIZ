@@ -114,13 +114,27 @@ export interface ItemCompra {
   precioUnitario: number
 }
 
+export type EstadoCompra = 'BORRADOR' | 'ENVIADA' | 'RECIBIDA_PARCIAL' | 'RECIBIDA' | 'ANULADA'
+
 export interface OrdenCompra {
   id: string
   numero: string | null
   idProveedor: string | null
   fecha: string
-  estado: 'BORRADOR' | 'ENVIADA' | 'RECIBIDA_PARCIAL' | 'RECIBIDA' | 'ANULADA'
+  estado: EstadoCompra
   items: ItemCompra[]
+}
+
+/** Respuesta del portal: la orden en curso y el historial del vehiculo. */
+export interface ConsultaPublica {
+  orden: OrdenDetalle
+  historial: {
+    numero: string | null
+    estado: EstadoOrden
+    fechaIngreso: string
+    fechaEntrega: string | null
+    total: number | null
+  }[]
 }
 
 export interface Servicio {

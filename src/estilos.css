@@ -567,6 +567,22 @@ input:focus, select:focus {
   background: linear-gradient(90deg, transparent, var(--rojo), transparent);
 }
 
+/* Historial del portal: resalta la orden que se muestra arriba. */
+.tabla-historial tr.fila-actual td { background: rgba(225, 6, 0, .06); }
+
+/* Acciones en linea de una orden de compra. */
+.acciones-compra { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.acciones-compra input { width: 84px; }
+.acciones-compra button { padding: 7px 12px; font-size: 13px; }
+
+/* Un enlace con aspecto de boton (p. ej. "Volver al tablero"). */
+a.boton-enlace {
+  display: inline-block; padding: 9px 18px; border-radius: 5px;
+  text-decoration: none; font-weight: 600; border: 1px solid transparent;
+}
+a.boton-enlace.primario { color: #fff; }
+a.boton-enlace.primario:hover { color: #fff; }
+
 /* ------------------------------------------------ pagina no encontrada */
 
 .no-encontrada {

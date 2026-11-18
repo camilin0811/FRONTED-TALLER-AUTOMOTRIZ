@@ -1,7 +1,7 @@
 import { api } from './cliente'
 import type {
   Mecanico, Movimiento, OrdenCompra, OrdenDetalle, OrdenResumen,
-  Repuesto, Servicio, EstadoOrden, CanalAprobacion, Token,
+  Repuesto, Servicio, EstadoOrden, CanalAprobacion, Token, ConsultaPublica,
 } from './tipos'
 
 export const autenticacion = {
@@ -19,7 +19,7 @@ export const autenticacion = {
  */
 export const publico = {
   consultarOrden: (placa: string, documento: string) =>
-    api.post<OrdenDetalle>('/publico/orden', { placa, documento }),
+    api.post<ConsultaPublica>('/publico/orden', { placa, documento }),
 }
 
 export const ordenes = {
@@ -52,6 +52,14 @@ export const inventario = {
   listar: (bajoMinimo = false) => api.get<Repuesto[]>(`/repuestos?bajoMinimo=${bajoMinimo}`),
   movimientos: (codigo: string) => api.get<Movimiento[]>(`/repuestos/${codigo}/movimientos`),
   ordenesCompra: () => api.get<OrdenCompra[]>('/ordenes-compra'),
+  /** Solo administrador, mientras la orden es borrador. */
+  ajustarCantidad: (id: string, codigo: string, cantidad: number) =>
+    api.patch<OrdenCompra>(`/ordenes-compra/${id}/items/${encodeURIComponent(codigo)}`, { cantidad }),
+  /** Solo administrador. */
+  enviarCompra: (id: string) => api.post<OrdenCompra>(`/ordenes-compra/${id}/envio`),
+  /** Administrador o recepcion, sobre una orden enviada. */
+  recibirCompra: (id: string, codigo: string, cantidad: number) =>
+    api.post<OrdenCompra>(`/ordenes-compra/${id}/recepcion`, { codigo, cantidad }),
 }
 
 export const personal = {
