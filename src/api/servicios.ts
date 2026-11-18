@@ -12,11 +12,14 @@ export const autenticacion = {
     api.post<void>('/auth/clave', { claveActual, claveNueva }),
 }
 
-/** Unico endpoint sin token: exige placa y documento del titular. */
+/**
+ * Unico endpoint sin token: exige placa y documento del titular.
+ * Va por POST para que esos datos no queden en la URL, los registros de
+ * acceso ni el historial del navegador.
+ */
 export const publico = {
   consultarOrden: (placa: string, documento: string) =>
-    api.get<OrdenDetalle>(
-      `/publico/orden?placa=${encodeURIComponent(placa)}&documento=${encodeURIComponent(documento)}`),
+    api.post<OrdenDetalle>('/publico/orden', { placa, documento }),
 }
 
 export const ordenes = {

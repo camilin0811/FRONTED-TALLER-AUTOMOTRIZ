@@ -1,4 +1,6 @@
+import { ETIQUETA_ESTADO } from '../estados'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { publico } from '../api/servicios'
 import type { OrdenDetalle } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
@@ -7,6 +9,23 @@ import { ErrorApi } from '../api/cliente'
 import { LineaTiempo } from '../componentes/LineaTiempo'
 import { dinero, fecha } from '../formato'
 import { CocheEscaparate } from '../componentes/CocheEscaparate'
+
+/** Placa: solo letras y números. Espacios y guiones se quitan al escribir. */
+const PLACA_MAX = 8
+const limpiarPlaca = (v: string) => v.toUpperCase().replace(/[\s-]/g, '').replace(/[^A-Z0-9]/g, '')
+const limpiarDocumento = (v: string) => v.replace(/\D/g, '')
+
+/** Mismas reglas que valida el servidor; aqui solo ahorran el viaje. */
+function validar(placa: string, documento: string): { placa?: string; documento?: string } {
+  const errores: { placa?: string; documento?: string } = {}
+  if (!/^[A-Z0-9]{3,8}$/.test(placa)) {
+    errores.placa = 'Escriba la placa con letras y números (entre 3 y 8), sin espacios ni guiones.'
+  }
+  if (!/^\d{5,15}$/.test(documento)) {
+    errores.documento = 'Escriba solo los números del documento (entre 5 y 15 dígitos).'
+  }
+  return errores
+}
 
 /**
  * Portal público del cliente.
@@ -21,9 +40,14 @@ export function PortalCliente() {
   const [error, setError] = useState<unknown>(null)
   const [buscando, setBuscando] = useState(false)
   const [sinResultado, setSinResultado] = useState(false)
+  const [errores, setErrores] = useState<{ placa?: string; documento?: string }>({})
 
   async function buscar(ev: React.FormEvent) {
     ev.preventDefault()
+    const encontrados = validar(placa, documento)
+    setErrores(encontrados)
+    if (encontrados.placa || encontrados.documento) return
+
     setBuscando(true)
     setError(null)
     setOrden(null)
@@ -31,7 +55,7 @@ export function PortalCliente() {
     try {
       // Exige placa y documento: solo con la placa, cualquiera podría ver
       // cuánto paga un tercero por su reparación.
-      setOrden(await publico.consultarOrden(placa.trim().toUpperCase(), documento.trim()))
+      setOrden(await publico.consultarOrden(placa, documento))
     } catch (e) {
       if (e instanceof ErrorApi && e.status === 404) setSinResultado(true)
       else setError(e)
@@ -42,7 +66,10 @@ export function PortalCliente() {
 
   return (
     <>
-      <div className="portal-barra">Taller Automotriz · Portal del Cliente</div>
+      <header className="portal-barra">
+        <Link to="/" className="portal-marca">Taller Automotriz · Portal del cliente</Link>
+        <Link to="/acceso" className="enlace-barra">Volver al acceso del taller</Link>
+      </header>
       <div className="portal">
         <div className="portal-presentacion">
           <div className="texto">
@@ -54,18 +81,30 @@ export function PortalCliente() {
           <CocheEscaparate className="portal-coche" />
         </div>
 
-        <form onSubmit={buscar} className="fila" style={{ alignItems: 'flex-end', marginBottom: 20 }}>
-          <div>
+        {/* Los ejemplos no coinciden con ninguna orden real: un ejemplo que
+            funciona deja ver los datos de otra persona. */}
+        <form onSubmit={buscar} className="fila" noValidate style={{ alignItems: 'flex-start', marginBottom: 20 }}>
+          <div className="campo">
             <label htmlFor="placa">Placa</label>
-            <input id="placa" value={placa} placeholder="ABC123" required
-                   onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+            <input id="placa" name="placa" value={placa} placeholder="Ej.: XYZ987" required
+                   maxLength={PLACA_MAX} autoComplete="off" autoCapitalize="characters"
+                   aria-invalid={Boolean(errores.placa)}
+                   aria-describedby={errores.placa ? 'placa-error' : undefined}
+                   onChange={(e) => setPlaca(limpiarPlaca(e.target.value))} />
+            {errores.placa && <div className="error-campo" id="placa-error">{errores.placa}</div>}
           </div>
-          <div>
+          <div className="campo">
             <label htmlFor="documento">Documento del titular</label>
-            <input id="documento" value={documento} placeholder="10000001" required
-                   onChange={(e) => setDocumento(e.target.value)} />
+            <input id="documento" name="documento" value={documento} placeholder="Número de documento"
+                   required inputMode="numeric" maxLength={15} autoComplete="off"
+                   aria-invalid={Boolean(errores.documento)}
+                   aria-describedby={errores.documento ? 'documento-error' : undefined}
+                   onChange={(e) => setDocumento(limpiarDocumento(e.target.value))} />
+            {errores.documento && (
+              <div className="error-campo" id="documento-error">{errores.documento}</div>
+            )}
           </div>
-          <button className="primario" type="submit" disabled={buscando} style={{ flex: '0 0 auto' }}>
+          <button className="primario boton-consulta" type="submit" disabled={buscando}>
             {buscando ? 'Buscando…' : 'Consultar'}
           </button>
         </form>
@@ -129,7 +168,7 @@ export function PortalCliente() {
             {/* Un botón inerte sin explicación genera llamadas a soporte. */}
             {!orden.idFactura && (
               <p className="tenue">
-                La factura estará disponible cuando la orden pase a FACTURADA.
+                La factura estará disponible cuando la orden pase a «{ETIQUETA_ESTADO.FACTURADA}».
               </p>
             )}
           </>
