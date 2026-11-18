@@ -32,10 +32,12 @@ interface Accion {
   mensaje: string
   exito: string
   peligro?: boolean
+  /** Si se indica, el boton queda deshabilitado y este texto explica por que. */
+  bloqueo?: string
   ejecutar: (id: string) => Promise<Orden>
 }
 
-function accionesDe(estado: EstadoOrden, idMecanico: string | null | undefined): Accion[] {
+function accionesDe(estado: EstadoOrden, idMecanico: string | null | undefined, servicios: number): Accion[] {
   switch (estado) {
     case 'RECIBIDA':
       return [{
@@ -51,6 +53,8 @@ function accionesDe(estado: EstadoOrden, idMecanico: string | null | undefined):
         mensaje: 'Se emitirá la cotización con los servicios y repuestos registrados y se enviará al cliente. '
           + 'La orden pasará a «Cotizada».',
         exito: 'Cotización emitida.',
+        // El backend tambien lo valida; aqui se avisa antes de intentarlo.
+        bloqueo: servicios === 0 ? 'Agregue al menos un servicio para emitir la cotización.' : undefined,
         ejecutar: (id) => ordenes.transicionar(id, 'COTIZADA'),
       }]
     case 'COTIZADA':
@@ -118,10 +122,9 @@ export function DetalleOrden() {
 
   async function cambiarEstado(accion: Accion) {
     if (!orden) return
-    setOcupado(true)
     const actualizada = await ejecutarConfirmado(
       { titulo: accion.titulo, mensaje: accion.mensaje, confirmar: accion.etiqueta,
-        exito: accion.exito, peligro: accion.peligro },
+        exito: accion.exito, peligro: accion.peligro, alConfirmar: () => setOcupado(true) },
       () => accion.ejecutar(orden.id),
     )
     setOcupado(false)
@@ -134,19 +137,22 @@ export function DetalleOrden() {
   async function asignarMecanico() {
     if (!orden || !mecanicoElegido) return
     const elegido = mecanicos.find((m) => m.idMecanico === mecanicoElegido)
-    setOcupado(true)
     const actualizada = await ejecutarConfirmado({
       titulo: orden.mecanico ? 'Cambiar mecánico' : 'Asignar mecánico',
       mensaje: orden.mecanico
-        ? `La orden pasará de ${orden.mecanico} a ${elegido?.nombre}. ${orden.mecanico} quedará disponible.`
-        : `${elegido?.nombre} quedará a cargo de la orden ${orden.numero ?? ''}.`,
+        ? <>La orden <span className="nowrap">{orden.numero}</span> pasará de {orden.mecanico} a {elegido?.nombre}.
+            {' '}{orden.mecanico} quedará disponible.</>
+        : <>{elegido?.nombre} quedará a cargo de la orden <span className="nowrap">{orden.numero}</span>.</>,
       confirmar: orden.mecanico ? 'Cambiar mecánico' : 'Asignar',
       exito: `Mecánico asignado: ${elegido?.nombre}.`,
+      alConfirmar: () => setOcupado(true),
     }, () => ordenes.asignarMecanico(orden.id, mecanicoElegido))
     setOcupado(false)
     if (actualizada) {
       setOrden(actualizada)
       setMecanicoElegido('')
+      // La asignacion queda en el historial: se vuelve a leer.
+      ordenes.historial(actualizada.id).then(setHistorial).catch(() => {})
     }
   }
 
@@ -161,7 +167,7 @@ export function DetalleOrden() {
   }
 
   const e = orden.estado
-  const acciones = accionesDe(e, orden.idMecanico)
+  const acciones = accionesDe(e, orden.idMecanico, orden.servicios.length)
   const enTrabajo = EN_PROCESO.includes(e)
   const opciones = mecanicos.filter((m) => m.idMecanico !== orden.idMecanico)
 
@@ -277,13 +283,20 @@ export function DetalleOrden() {
               : 'No hay acciones disponibles para su rol en este estado.'}
           </p>
         ) : (
-          <div className="acciones">
-            {acciones.map((a) => (
-              <button key={a.etiqueta} className={a.clase} disabled={ocupado} onClick={() => cambiarEstado(a)}>
-                {a.etiqueta}
-              </button>
+          <>
+            <div className="acciones">
+              {acciones.map((a, i) => (
+                <button key={a.etiqueta} className={a.clase} disabled={ocupado || Boolean(a.bloqueo)}
+                        aria-describedby={a.bloqueo ? `bloqueo-${i}` : undefined}
+                        onClick={() => cambiarEstado(a)}>
+                  {a.etiqueta}
+                </button>
+              ))}
+            </div>
+            {acciones.map((a, i) => a.bloqueo && (
+              <p key={`bloqueo-${i}`} id={`bloqueo-${i}`} className="aviso-bloqueo">{a.bloqueo}</p>
             ))}
-          </div>
+          </>
         )}
       </div>
 
@@ -291,12 +304,14 @@ export function DetalleOrden() {
       <div className="panel">
         <h3>Historial</h3>
         {historial.length === 0 ? (
-          <p className="tenue" style={{ margin: 0 }}>Sin cambios de estado registrados.</p>
+          <p className="tenue" style={{ margin: 0 }}>Sin cambios registrados.</p>
         ) : (
           <ol className="historial">
             {[...historial].reverse().map((h, i) => (
-              <li key={`${h.estado}-${h.fecha}-${i}`}>
-                <div className="historial-estado">{etiquetaEstado(h.estado)}</div>
+              <li key={`${h.tipo}-${h.fecha}-${i}`} className={h.tipo === 'MECANICO' ? 'anotacion' : undefined}>
+                <div className="historial-estado">
+                  {h.tipo === 'MECANICO' ? h.descripcion : h.estado ? etiquetaEstado(h.estado) : '—'}
+                </div>
                 <div className="historial-quien">
                   {h.nombre ?? 'Sistema'}
                   {h.rol && <span className="tenue"> · {ETIQUETA_ROL[h.rol]}</span>}

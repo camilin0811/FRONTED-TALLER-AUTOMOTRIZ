@@ -35,6 +35,10 @@ export function ProveedorInteraccion({ children }: { children: React.ReactNode }
   }, [cerrarToast])
 
   const confirmar = useCallback((opciones: OpcionesConfirmacion) => new Promise<boolean>((resolve) => {
+    // Si se llega a confirmar, los errores de validacion previos ya no
+    // aplican: el formulario paso a ser valido. No deben quedar a la vista
+    // mientras el modal esta abierto.
+    setToasts((lista) => lista.filter((t) => t.tono === 'exito'))
     resolver.current = resolve
     setPendiente(opciones)
   }), [])

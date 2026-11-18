@@ -9,8 +9,9 @@ const CAMINO: EstadoOrden[] = [
 ]
 
 export function LineaTiempo({ historial, actual }: { historial: Hito[]; actual: EstadoOrden }) {
-  const alcanzados = new Set(historial.map((h) => h.estado))
-  const cuando = new Map(historial.map((h) => [h.estado, h.fecha]))
+  const estados = historial.filter((h): h is Hito & { estado: EstadoOrden } => h.estado != null)
+  const alcanzados = new Set(estados.map((h) => h.estado))
+  const cuando = new Map(estados.map((h) => [h.estado, h.fecha]))
   const indiceActual = CAMINO.indexOf(actual)
 
   return (

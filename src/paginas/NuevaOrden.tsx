@@ -131,12 +131,11 @@ export function NuevaOrden() {
     }
 
     const nombreCliente = cliente === 'nuevo' ? nombre.trim() : cliente.nombre
-    setGuardando(true)
     const orden = await ejecutarConfirmado({
       titulo: 'Crear orden de trabajo',
       mensaje: (
         <>
-          <p>Se recibirá el vehículo <strong>{placa}</strong> de <strong>{nombreCliente}</strong> con
+          <p>Se recibirá el vehículo <strong className="nowrap">{placa}</strong> de <strong>{nombreCliente}</strong> con
             {' '}{Number(kilometraje).toLocaleString('es-CO')} km.</p>
           {(cliente === 'nuevo' || vehiculo === 'nuevo') && (
             <p className="tenue">
@@ -149,6 +148,7 @@ export function NuevaOrden() {
       ),
       confirmar: 'Crear orden',
       exito: 'Orden creada en estado «Recibida».',
+      alConfirmar: () => setGuardando(true),
     }, async () => {
       // Cada paso guarda lo creado: si uno posterior falla, al reintentar
       // se reutiliza en vez de duplicar el cliente o el vehiculo.

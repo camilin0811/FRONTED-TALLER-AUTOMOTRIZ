@@ -191,7 +191,7 @@ export function PortalCliente() {
                       <tr key={h.numero ?? h.fechaIngreso}
                           className={h.numero === orden.numero ? 'fila-actual' : undefined}>
                         <td>
-                          <strong>{h.numero ?? '—'}</strong>
+                          <strong className="nowrap">{h.numero ?? '—'}</strong>
                           {h.numero === orden.numero && <span className="tenue"> · la que ve arriba</span>}
                         </td>
                         <td>{fecha(h.fechaIngreso)}</td>

@@ -13,6 +13,17 @@ export interface OpcionesConfirmacion {
   peligro?: boolean
 }
 
+/** Opciones de una accion confirmada. */
+export interface OpcionesAccion extends OpcionesConfirmacion {
+  exito: string
+  /**
+   * Se llama solo cuando el usuario confirma, justo antes de ejecutar: es
+   * el momento de mostrar "Creando…" o deshabilitar botones. Si cancela,
+   * no se llama y la pantalla no cambia.
+   */
+  alConfirmar?: () => void
+}
+
 export interface ContextoInteraccion {
   notificar: (tono: TonoToast, mensaje: string) => void
   confirmar: (opciones: OpcionesConfirmacion) => Promise<boolean>
@@ -52,11 +63,12 @@ export function mensajeDeError(e: unknown): string {
 export function useAccionConfirmada() {
   const { confirmar, notificar } = useContextoInteraccion()
   return useCallback(async <T,>(
-    opciones: OpcionesConfirmacion & { exito: string },
+    opciones: OpcionesAccion,
     accion: () => Promise<T>,
     alFallar?: (e: unknown) => void,
   ): Promise<T | undefined> => {
     if (!(await confirmar(opciones))) return undefined
+    opciones.alConfirmar?.()
     try {
       const resultado = await accion()
       notificar('exito', opciones.exito)

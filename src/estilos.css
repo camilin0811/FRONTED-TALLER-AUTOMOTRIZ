@@ -585,11 +585,16 @@ a.boton-enlace.primario:hover { color: #fff; }
 
 /* ------------------------------------------------- tablas en celular */
 
-/* La tabla conserva su forma y se desplaza en horizontal dentro de su
-   caja: la pagina nunca se desborda a lo ancho. */
+/* En escritorio la tabla ocupa su caja y el texto largo pasa a otra linea.
+   En el celular conserva su forma y se desplaza en horizontal dentro de su
+   caja (ver el bloque movil): la pagina nunca se desborda a lo ancho. */
 .tabla-desplazable { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radio); }
-.tabla-desplazable table { min-width: 560px; }
-.tabla-desplazable td, .tabla-desplazable th { white-space: nowrap; }
+
+/* Numeros de orden y de compra (OT-0004, OC-0001): nunca se parten. */
+.nowrap { white-space: nowrap; }
+
+/* Por que un boton esta deshabilitado, justo debajo de el. */
+.aviso-bloqueo { margin: 8px 0 0; font-size: 13px; color: var(--aviso-tinta); }
 
 /* ------------------------------------------------------- menu lateral */
 
@@ -667,6 +672,12 @@ body.con-modal { overflow: hidden; }
   width: 7px; height: 7px; border-radius: 50%; background: var(--rojo);
 }
 .historial-estado { font-weight: 600; }
+/* Anotaciones (asignar o cambiar mecanico): rombo metalico en lugar del
+   punto rojo de los cambios de estado, y texto sin negrita. */
+.historial li.anotacion::before {
+  border-radius: 1px; transform: rotate(45deg); background: var(--metal);
+}
+.historial li.anotacion .historial-estado { font-weight: 400; color: var(--tinta-suave); }
 .historial-cuando { font-size: 12px; white-space: nowrap; }
 @media (max-width: 520px) {
   .historial li { grid-template-columns: 1fr; }
@@ -770,6 +781,8 @@ a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(2
   .boton-consulta { margin-top: 0; }
   .selector-mecanico { max-width: none; flex: 1 1 100%; }
   .acciones-compra input { width: 70px; }
+  .tabla-desplazable table { min-width: 560px; }
+  .tabla-desplazable td, .tabla-desplazable th { white-space: nowrap; }
   .modal { padding: 20px; }
   .modal-pie { flex-direction: column-reverse; }
   .modal-pie button { width: 100%; }

@@ -51,8 +51,12 @@ export interface Item {
 }
 
 export interface Hito {
-  estado: EstadoOrden
+  /** Vacio en las anotaciones (tipo MECANICO): no son cambios de estado. */
+  estado: EstadoOrden | null
   fecha: string
+  /** ESTADO para cambios de estado; MECANICO para asignaciones y cambios de mecanico. */
+  tipo?: 'ESTADO' | 'MECANICO'
+  descripcion?: string | null
   /** Ausentes en el portal publico: no expone al personal del taller. */
   usuario?: string | null
   nombre?: string | null

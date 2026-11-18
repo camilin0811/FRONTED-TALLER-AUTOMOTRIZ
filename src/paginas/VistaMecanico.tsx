@@ -47,9 +47,8 @@ export function VistaMecanico() {
     opciones: { titulo: string; mensaje: string; confirmar: string; exito: string },
     accion: () => Promise<OrdenDetalle>,
   ) {
-    setOcupado(true)
     setError(null)
-    const actualizada = await ejecutarConfirmado(opciones, accion)
+    const actualizada = await ejecutarConfirmado({ ...opciones, alConfirmar: () => setOcupado(true) }, accion)
     if (actualizada) setSel(actualizada)
     else if (sel) abrir(sel.id)
     setOcupado(false)
@@ -79,7 +78,7 @@ export function VistaMecanico() {
               tabIndex={0}
               onKeyDown={(ev) => ev.key === 'Enter' && abrir(o.id)}
             >
-              <div className="ot">{o.numero}</div>
+              <div className="ot nowrap">{o.numero}</div>
               <div className="tenue">{o.descripcionVehiculo} · {o.placa}</div>
               <div style={{ marginTop: 6 }}><Estado valor={o.estado} /></div>
             </div>
