@@ -2,6 +2,7 @@ import { api } from './cliente'
 import type {
   Mecanico, Movimiento, OrdenCompra, OrdenDetalle, OrdenResumen,
   Repuesto, Servicio, EstadoOrden, CanalAprobacion, Token, ConsultaPublica,
+  Cliente, Hito, MecanicoAsignable, TipoVehiculo, Vehiculo,
 } from './tipos'
 
 export const autenticacion = {
@@ -31,8 +32,13 @@ export const ordenes = {
     return api.get<OrdenResumen[]>(`/ordenes${q ? `?${q}` : ''}`)
   },
   detalle: (id: string) => api.get<OrdenDetalle>(`/ordenes/${id}`),
-  crear: (datos: { placa: string; kilometraje: number; motivo?: string }) =>
+  crear: (datos: { placa: string; kilometraje: number; motivo: string }) =>
     api.post<OrdenDetalle>('/ordenes', datos),
+  /** Cambios de estado con nombre y rol de quien los hizo. */
+  historial: (id: string) => api.get<Hito[]>(`/ordenes/${id}/historial`),
+  /** Solo recepcion y administracion. */
+  asignarMecanico: (id: string, idMecanico: string) =>
+    api.patch<OrdenDetalle>(`/ordenes/${id}/mecanico`, { idMecanico }),
   transicionar: (
     id: string,
     estado: EstadoOrden,
@@ -64,6 +70,22 @@ export const inventario = {
 
 export const personal = {
   disponibles: () => api.get<Mecanico[]>('/mecanicos/disponibles'),
+  /** Usuarios con rol mecanico, con su disponibilidad. */
+  asignables: () => api.get<MecanicoAsignable[]>('/mecanicos'),
+}
+
+export const clientes = {
+  porDocumento: (documento: string) => api.get<Cliente>(`/clientes/documento/${encodeURIComponent(documento)}`),
+  crear: (datos: { nombre: string; documento: string; telefono: string; email?: string }) =>
+    api.post<Cliente>('/clientes', datos),
+}
+
+export const vehiculos = {
+  porPlaca: (placa: string) => api.get<Vehiculo>(`/vehiculos/${encodeURIComponent(placa)}`),
+  crear: (datos: {
+    tipo: TipoVehiculo; placa: string; idCliente: string
+    marca: string; linea: string; anio: number; kilometraje: number
+  }) => api.post<Vehiculo>('/vehiculos', datos),
 }
 
 export const catalogo = {

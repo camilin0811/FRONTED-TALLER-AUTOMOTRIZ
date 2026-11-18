@@ -53,7 +53,10 @@ export interface Item {
 export interface Hito {
   estado: EstadoOrden
   fecha: string
-  usuario: string | null
+  /** Ausentes en el portal publico: no expone al personal del taller. */
+  usuario?: string | null
+  nombre?: string | null
+  rol?: Rol | null
 }
 
 export interface OrdenDetalle {
@@ -75,6 +78,36 @@ export interface OrdenDetalle {
   historial: Hito[]
   total: number
   idFactura: string | null
+  idMecanico?: string | null
+  motivoIngreso?: string | null
+}
+
+/** Usuario con rol mecanico que se puede asignar a una orden. */
+export interface MecanicoAsignable {
+  idMecanico: string
+  nombre: string
+  usuario: string
+  especialidad: string | null
+  disponible: boolean
+}
+
+export interface Cliente {
+  id: string
+  nombre: string
+  documento: string
+  telefono: string | null
+  email: string | null
+}
+
+export interface Vehiculo {
+  id: string
+  placa: string
+  marca: string | null
+  linea: string | null
+  anio: number
+  kilometraje: number
+  idCliente: string
+  tipo: TipoVehiculo
 }
 
 export interface Repuesto {
@@ -122,6 +155,8 @@ export interface OrdenCompra {
   idProveedor: string | null
   fecha: string
   estado: EstadoCompra
+  /** null: la genero la reposicion automatica. */
+  generadaPor?: string | null
   items: ItemCompra[]
 }
 

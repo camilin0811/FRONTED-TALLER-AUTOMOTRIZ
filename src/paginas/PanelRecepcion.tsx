@@ -87,7 +87,10 @@ export function PanelRecepcion() {
     <>
       <div className="encabezado">
         <h2>Tablero de órdenes</h2>
-        <span className="tenue">{fecha(new Date().toISOString())}</span>
+        <div className="encabezado-acciones">
+          <span className="tenue">{fecha(new Date().toISOString())}</span>
+          <Link to="/ordenes/nueva" className="boton-enlace primario">+ Nueva orden</Link>
+        </div>
       </div>
 
       <AvisoError error={error} />
@@ -142,6 +145,7 @@ export function PanelRecepcion() {
             : 'Ninguna orden coincide con la búsqueda.'}
         </Vacio>
       ) : (
+        <div className="tabla-desplazable">
         <table>
           <thead>
             <tr>
@@ -162,6 +166,7 @@ export function PanelRecepcion() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <p className="tenue" style={{ marginTop: 14 }}>

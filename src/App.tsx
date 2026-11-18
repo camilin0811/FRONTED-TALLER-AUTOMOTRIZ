@@ -1,5 +1,8 @@
 import { ETIQUETA_ROL } from './estados'
+import { useState } from 'react'
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { ProveedorInteraccion } from './componentes/ProveedorInteraccion'
+import { NuevaOrden } from './paginas/NuevaOrden'
 import { ProveedorAutenticacion, useAutenticacion } from './autenticacion/Contexto'
 import { Guarda } from './autenticacion/Guarda'
 import { PanelRecepcion } from './paginas/PanelRecepcion'
@@ -13,6 +16,7 @@ import { NoEncontrada } from './paginas/NoEncontrada'
 export default function App() {
   return (
     <ProveedorAutenticacion>
+      <ProveedorInteraccion>
       <Routes>
         {/* Publicas, sin el menu interno del taller */}
         <Route path="/portal" element={<PortalCliente />} />
@@ -23,6 +27,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/recepcion" replace />} />
           <Route path="/recepcion" element={
             <Guarda roles={['RECEPCIONISTA', 'ADMINISTRADOR']}><PanelRecepcion /></Guarda>} />
+          <Route path="/ordenes/nueva" element={
+            <Guarda roles={['RECEPCIONISTA', 'ADMINISTRADOR']}><NuevaOrden /></Guarda>} />
           <Route path="/ordenes/:id" element={
             <Guarda roles={['RECEPCIONISTA', 'ADMINISTRADOR']}><DetalleOrden /></Guarda>} />
           <Route path="/mecanico" element={
@@ -34,6 +40,7 @@ export default function App() {
         {/* Cualquier otra direccion: pagina propia, no un salto al login */}
         <Route path="*" element={<NoEncontrada />} />
       </Routes>
+      </ProveedorInteraccion>
     </ProveedorAutenticacion>
   )
 }
@@ -52,12 +59,24 @@ function Interno() {
 function Lateral() {
   const { sesion, salir, tieneRol } = useAutenticacion()
   const activo = ({ isActive }: { isActive: boolean }) => (isActive ? 'activo' : '')
+  // En el celular el menu se pliega en un boton; elegir una opcion lo cierra.
+  const [abierto, setAbierto] = useState(false)
 
   return (
-    <aside className="lateral">
-      <h1>Taller</h1>
-      <p className="lema">Racing service</p>
-      <nav>
+    <aside className={`lateral ${abierto ? 'abierto' : ''}`}>
+      <div className="lateral-cabecera">
+        <div>
+          <h1>Taller</h1>
+          <p className="lema">Racing service</p>
+        </div>
+        <button className="boton-menu" aria-expanded={abierto} aria-controls="menu-principal"
+                onClick={() => setAbierto((v) => !v)}>
+          <span aria-hidden>{abierto ? '✕' : '☰'}</span>
+          <span className="sr-only">{abierto ? 'Cerrar menú' : 'Abrir menú'}</span>
+        </button>
+      </div>
+      <div className="lateral-menu" id="menu-principal">
+      <nav onClick={() => setAbierto(false)}>
         {/* El menu solo muestra lo que el rol puede abrir. Quien decide de
             verdad es el backend; esto evita callejones sin salida. */}
         {tieneRol('RECEPCIONISTA', 'ADMINISTRADOR') && (
@@ -79,6 +98,7 @@ function Lateral() {
           <button className="salir" onClick={salir}>Cerrar sesión</button>
         </div>
       )}
+      </div>
     </aside>
   )
 }
