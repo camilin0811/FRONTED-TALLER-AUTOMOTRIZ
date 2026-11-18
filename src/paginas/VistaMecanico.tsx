@@ -1,3 +1,4 @@
+import { useAccionConfirmada } from '../componentes/interaccion'
 import { useCallback, useEffect, useState } from 'react'
 import { ordenes } from '../api/servicios'
 import type { OrdenDetalle, OrdenResumen } from '../api/tipos'
@@ -13,6 +14,7 @@ import { dinero } from '../formato'
  * guantes y sin perder de vista las demás órdenes asignadas.
  */
 export function VistaMecanico() {
+  const ejecutarConfirmado = useAccionConfirmada()
   const [lista, setLista] = useState<OrdenResumen[]>([])
   const [sel, setSel] = useState<OrdenDetalle | null>(null)
   const [codigo, setCodigo] = useState('')
@@ -40,18 +42,18 @@ export function VistaMecanico() {
     ordenes.detalle(id).then(setSel).catch(setError)
   }
 
-  async function ejecutar(accion: () => Promise<OrdenDetalle>) {
+  /** Confirmacion propia, toast con el resultado y relectura de la orden. */
+  async function ejecutar(
+    opciones: { titulo: string; mensaje: string; confirmar: string; exito: string },
+    accion: () => Promise<OrdenDetalle>,
+  ) {
     setOcupado(true)
     setError(null)
-    try {
-      setSel(await accion())
-    } catch (e) {
-      setError(e)
-      if (sel) abrir(sel.id)
-    } finally {
-      setOcupado(false)
-      cargarLista()
-    }
+    const actualizada = await ejecutarConfirmado(opciones, accion)
+    if (actualizada) setSel(actualizada)
+    else if (sel) abrir(sel.id)
+    setOcupado(false)
+    cargarLista()
   }
 
   if (cargando) return <Cargando que="tus órdenes" />
@@ -133,8 +135,12 @@ export function VistaMecanico() {
                              onChange={(ev) => setCantidad(Number(ev.target.value))} />
                     </div>
                     <button className="secundario" disabled={ocupado || !codigo}
-                            onClick={() => ejecutar(() =>
-                              ordenes.registrarRepuesto(sel.id, codigo, cantidad))}>
+                            onClick={() => ejecutar({
+                              titulo: 'Registrar repuesto',
+                              mensaje: `Se descontarán ${cantidad} unidad(es) de ${codigo} del inventario `
+                                + `y se cargarán a la orden ${sel.numero ?? ''}.`,
+                              confirmar: 'Registrar', exito: `Repuesto ${codigo} registrado.`,
+                            }, () => ordenes.registrarRepuesto(sel.id, codigo, cantidad))}>
                       + Registrar repuesto
                     </button>
                   </div>
@@ -147,19 +153,28 @@ export function VistaMecanico() {
                 {sel.estado === 'EN_REPARACION' && (
                   <>
                     <button className="exito" disabled={ocupado}
-                            onClick={() => ejecutar(() => ordenes.transicionar(sel.id, 'CERRADA'))}>
+                            onClick={() => ejecutar({
+                              titulo: 'Finalizar trabajo',
+                              mensaje: 'La orden pasará a «Cerrada» y se generará la factura automáticamente. '
+                                + 'Ya no podrá registrar más repuestos.',
+                              confirmar: 'Finalizar trabajo', exito: 'Trabajo finalizado. Se está generando la factura.',
+                            }, () => ordenes.transicionar(sel.id, 'CERRADA'))}>
                       Finalizar trabajo
                     </button>
                     <button className="secundario" disabled={ocupado}
-                            onClick={() => ejecutar(() =>
-                              ordenes.transicionar(sel.id, 'EN_ESPERA_REPUESTO'))}>
+                            onClick={() => ejecutar({
+                              titulo: 'Reportar falta de repuesto',
+                              mensaje: 'La orden pasará a «En espera de repuesto» hasta que el repuesto llegue.',
+                              confirmar: 'Reportar', exito: 'Orden en espera de repuesto.',
+                            }, () => ordenes.transicionar(sel.id, 'EN_ESPERA_REPUESTO'))}>
                       Reportar falta de repuesto
                     </button>
                   </>
                 )}
                 {sel.estado === 'EN_ESPERA_REPUESTO' && (
                   <Aviso tono="alerta" titulo="Orden bloqueada">
-                    Falta un repuesto. Ya se generó la orden de compra; recepción debe revisarla.
+                    Falta un repuesto. Se generó una orden de compra que administración revisará;
+                    cuando llegue el repuesto, recepción reanudará la reparación.
                   </Aviso>
                 )}
               </div>

@@ -1,15 +1,15 @@
-import { ETIQUETA_COTIZACION } from '../estados'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { EstadoOrden } from '../api/tipos'
+import { ordenes, personal } from '../api/servicios'
+import type { EstadoOrden, Hito, MecanicoAsignable, OrdenDetalle as Orden } from '../api/tipos'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { inicioDe } from '../autenticacion/inicio'
-import { ordenes, personal } from '../api/servicios'
-import type { Mecanico, OrdenDetalle as Orden } from '../api/tipos'
-import { Estado } from '../componentes/Estado'
 import { Aviso, AvisoError } from '../componentes/Aviso'
 import { Cargando } from '../componentes/Cargando'
+import { Estado } from '../componentes/Estado'
 import { LineaTiempo } from '../componentes/LineaTiempo'
+import { useAccionConfirmada } from '../componentes/interaccion'
+import { ETIQUETA_COTIZACION, ETIQUETA_ROL, EN_PROCESO, etiquetaEstado } from '../estados'
 import { dinero, fechaHora } from '../formato'
 
 /**
@@ -24,35 +24,129 @@ const SIGUIENTE_PASO: Partial<Record<EstadoOrden, string>> = {
   ENTREGADA: 'La orden fue entregada al cliente y quedó en solo lectura.',
 }
 
+/** Una accion que cambia el estado: que dice el boton y que confirma. */
+interface Accion {
+  etiqueta: string
+  clase: string
+  titulo: string
+  mensaje: string
+  exito: string
+  peligro?: boolean
+  ejecutar: (id: string) => Promise<Orden>
+}
+
+function accionesDe(estado: EstadoOrden, idMecanico: string | null | undefined): Accion[] {
+  switch (estado) {
+    case 'RECIBIDA':
+      return [{
+        etiqueta: 'Iniciar diagnóstico', clase: 'primario', titulo: 'Iniciar diagnóstico',
+        mensaje: 'La orden pasará a «En diagnóstico» y se intentará leer el escáner OBD-II.',
+        exito: 'Diagnóstico iniciado.',
+        ejecutar: (id) => ordenes.registrarDiagnostico(id,
+          { usarEscaner: true, codigosFalla: [], observaciones: 'Diagnóstico inicial' }),
+      }]
+    case 'EN_DIAGNOSTICO':
+      return [{
+        etiqueta: 'Emitir cotización', clase: 'primario', titulo: 'Emitir cotización',
+        mensaje: 'Se emitirá la cotización con los servicios y repuestos registrados y se enviará al cliente. '
+          + 'La orden pasará a «Cotizada».',
+        exito: 'Cotización emitida.',
+        ejecutar: (id) => ordenes.transicionar(id, 'COTIZADA'),
+      }]
+    case 'COTIZADA':
+      return [{
+        etiqueta: 'Registrar aprobación', clase: 'exito', titulo: 'Registrar aprobación del cliente',
+        mensaje: 'El cliente aprobó la cotización en el mostrador. La orden pasará a «Aprobada».',
+        exito: 'Aprobación registrada.',
+        ejecutar: (id) => ordenes.transicionar(id, 'APROBADA', { canal: 'PRESENCIAL' }),
+      }, {
+        etiqueta: 'Registrar rechazo', clase: 'peligro', titulo: 'Registrar rechazo del cliente', peligro: true,
+        mensaje: 'El cliente rechazó la cotización. La orden pasará a «Rechazada» y no se hará el trabajo.',
+        exito: 'Rechazo registrado.',
+        ejecutar: (id) => ordenes.transicionar(id, 'RECHAZADA', { motivo: 'Rechazada por el cliente' }),
+      }]
+    case 'APROBADA':
+      return idMecanico ? [{
+        etiqueta: 'Comenzar reparación', clase: 'primario', titulo: 'Comenzar reparación',
+        mensaje: 'La orden pasará a «En reparación» con el mecánico asignado.',
+        exito: 'Reparación iniciada.',
+        ejecutar: (id) => ordenes.transicionar(id, 'EN_REPARACION'),
+      }] : []
+    case 'EN_ESPERA_REPUESTO':
+      return [{
+        etiqueta: 'Reanudar reparación', clase: 'primario', titulo: 'Reanudar reparación',
+        mensaje: 'Confirme que el repuesto ya llegó. La orden volverá a «En reparación».',
+        exito: 'Reparación reanudada.',
+        ejecutar: (id) => ordenes.transicionar(id, 'EN_REPARACION'),
+      }]
+    case 'FACTURADA':
+    case 'RECHAZADA':
+      return [{
+        etiqueta: 'Registrar entrega', clase: 'exito', titulo: 'Registrar entrega',
+        mensaje: 'El cliente retiró el vehículo. La orden pasará a «Entregada» y quedará en solo lectura.',
+        exito: 'Entrega registrada.',
+        ejecutar: (id) => ordenes.transicionar(id, 'ENTREGADA'),
+      }]
+    default:
+      return []
+  }
+}
+
 export function DetalleOrden() {
   const { id = '' } = useParams()
-  const { sesion } = useAutenticacion()
+  const { sesion, tieneRol } = useAutenticacion()
   const navegar = useNavigate()
+  const ejecutarConfirmado = useAccionConfirmada()
   const [orden, setOrden] = useState<Orden | null>(null)
-  const [mecanicos, setMecanicos] = useState<Mecanico[]>([])
+  const [historial, setHistorial] = useState<Hito[]>([])
+  const [mecanicos, setMecanicos] = useState<MecanicoAsignable[]>([])
   const [mecanicoElegido, setMecanicoElegido] = useState('')
   const [error, setError] = useState<unknown>(null)
   const [ocupado, setOcupado] = useState(false)
 
+  const puedeAsignar = tieneRol('RECEPCIONISTA', 'ADMINISTRADOR')
+
   const recargar = useCallback(() => {
     ordenes.detalle(id).then(setOrden).catch(setError)
+    ordenes.historial(id).then(setHistorial).catch(() => setHistorial([]))
   }, [id])
 
   useEffect(() => { recargar() }, [recargar])
-  useEffect(() => { personal.disponibles().then(setMecanicos).catch(() => setMecanicos([])) }, [orden?.estado])
+  useEffect(() => {
+    if (puedeAsignar) personal.asignables().then(setMecanicos).catch(() => setMecanicos([]))
+  }, [orden?.idMecanico, puedeAsignar])
 
-  async function ejecutar(accion: () => Promise<Orden>) {
+  async function cambiarEstado(accion: Accion) {
+    if (!orden) return
     setOcupado(true)
-    setError(null)
-    try {
-      setOrden(await accion())
-    } catch (e) {
-      setError(e)
-      // Si la operacion fallo, el estado real puede haber cambiado igual
-      // (por ejemplo, quedar en espera de repuesto). Se vuelve a leer.
-      recargar()
-    } finally {
-      setOcupado(false)
+    const actualizada = await ejecutarConfirmado(
+      { titulo: accion.titulo, mensaje: accion.mensaje, confirmar: accion.etiqueta,
+        exito: accion.exito, peligro: accion.peligro },
+      () => accion.ejecutar(orden.id),
+    )
+    setOcupado(false)
+    // Exito o fallo, se vuelve a leer: un fallo tambien puede haber cambiado
+    // el estado real (por ejemplo, quedar en espera de repuesto).
+    if (actualizada) setOrden(actualizada)
+    recargar()
+  }
+
+  async function asignarMecanico() {
+    if (!orden || !mecanicoElegido) return
+    const elegido = mecanicos.find((m) => m.idMecanico === mecanicoElegido)
+    setOcupado(true)
+    const actualizada = await ejecutarConfirmado({
+      titulo: orden.mecanico ? 'Cambiar mecánico' : 'Asignar mecánico',
+      mensaje: orden.mecanico
+        ? `La orden pasará de ${orden.mecanico} a ${elegido?.nombre}. ${orden.mecanico} quedará disponible.`
+        : `${elegido?.nombre} quedará a cargo de la orden ${orden.numero ?? ''}.`,
+      confirmar: orden.mecanico ? 'Cambiar mecánico' : 'Asignar',
+      exito: `Mecánico asignado: ${elegido?.nombre}.`,
+    }, () => ordenes.asignarMecanico(orden.id, mecanicoElegido))
+    setOcupado(false)
+    if (actualizada) {
+      setOrden(actualizada)
+      setMecanicoElegido('')
     }
   }
 
@@ -67,6 +161,9 @@ export function DetalleOrden() {
   }
 
   const e = orden.estado
+  const acciones = accionesDe(e, orden.idMecanico)
+  const enTrabajo = EN_PROCESO.includes(e)
+  const opciones = mecanicos.filter((m) => m.idMecanico !== orden.idMecanico)
 
   return (
     <>
@@ -74,7 +171,7 @@ export function DetalleOrden() {
         <div>
           <button className="secundario" onClick={() => navegar('/recepcion')}>← Tablero</button>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginLeft: 'auto' }}>
+        <div className="titulo-orden">
           <h2 style={{ margin: 0 }}>{orden.numero ?? 'Orden'}</h2>
           <Estado valor={e} />
         </div>
@@ -85,7 +182,12 @@ export function DetalleOrden() {
         {' '}{orden.kilometrajeIngreso.toLocaleString('es-CO')} km · Cliente: {orden.cliente}
       </p>
 
-      <AvisoError error={error} />
+      {orden.motivoIngreso && (
+        <div className="panel">
+          <h3>Motivo de ingreso</h3>
+          <p style={{ margin: 0 }}>{orden.motivoIngreso}</p>
+        </div>
+      )}
 
       <LineaTiempo historial={orden.historial} actual={e} />
 
@@ -101,26 +203,28 @@ export function DetalleOrden() {
         {orden.servicios.length === 0 && orden.repuestos.length === 0 ? (
           <p className="tenue">Todavía no se ha agregado ningún ítem.</p>
         ) : (
-          <table>
-            <thead>
-              <tr><th>Código</th><th>Descripción</th><th>Cant.</th>
-                <th style={{ textAlign: 'right' }}>Valor</th></tr>
-            </thead>
-            <tbody>
-              {[...orden.servicios, ...orden.repuestos].map((i, n) => (
-                <tr key={`${i.codigo}-${n}`}>
-                  <td className="codigos">{i.codigo}</td>
-                  <td>{i.descripcion}</td>
-                  <td>{i.cantidad}</td>
-                  <td className="numero">{dinero(i.valor)}</td>
+          <div className="tabla-desplazable">
+            <table>
+              <thead>
+                <tr><th>Código</th><th>Descripción</th><th>Cant.</th>
+                  <th style={{ textAlign: 'right' }}>Valor</th></tr>
+              </thead>
+              <tbody>
+                {[...orden.servicios, ...orden.repuestos].map((i, n) => (
+                  <tr key={`${i.codigo}-${n}`}>
+                    <td className="codigos">{i.codigo}</td>
+                    <td>{i.descripcion}</td>
+                    <td>{i.cantidad}</td>
+                    <td className="numero">{dinero(i.valor)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={3}><strong>Total</strong></td>
+                  <td className="numero"><strong>{dinero(orden.total)}</strong></td>
                 </tr>
-              ))}
-              <tr>
-                <td colSpan={3}><strong>Total</strong></td>
-                <td className="numero"><strong>{dinero(orden.total)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -131,6 +235,34 @@ export function DetalleOrden() {
         </Aviso>
       )}
 
+      {/* ------------------------------------------------------- mecanico */}
+      <div className="panel">
+        <h3>Mecánico</h3>
+        <p style={{ margin: '0 0 10px' }}>
+          {orden.mecanico ? <strong>{orden.mecanico}</strong> : <span className="tenue">Sin asignar</span>}
+        </p>
+        {puedeAsignar && enTrabajo && (
+          <div className="acciones" style={{ marginTop: 0 }}>
+            <select value={mecanicoElegido} onChange={(ev) => setMecanicoElegido(ev.target.value)}
+                    aria-label={orden.mecanico ? 'Cambiar mecánico' : 'Asignar mecánico'} className="selector-mecanico">
+              <option value="">{orden.mecanico ? 'Cambiar a…' : 'Elegir mecánico…'}</option>
+              {opciones.map((m) => (
+                <option key={m.idMecanico} value={m.idMecanico} disabled={!m.disponible}>
+                  {m.nombre}{m.especialidad ? ` · ${m.especialidad}` : ''}{m.disponible ? '' : ' · ocupado'}
+                </option>
+              ))}
+            </select>
+            <button className="primario" disabled={ocupado || !mecanicoElegido} onClick={asignarMecanico}>
+              {orden.mecanico ? 'Cambiar' : 'Asignar'}
+            </button>
+          </div>
+        )}
+        {puedeAsignar && enTrabajo && opciones.length > 0 && opciones.every((m) => !m.disponible) && (
+          <p className="tenue" style={{ margin: '8px 0 0' }}>Todos los demás mecánicos están ocupados en este momento.</p>
+        )}
+      </div>
+
+      {/* ------------------------------------------------------- acciones */}
       <div className="panel">
         <h3>Acciones disponibles</h3>
         {SIGUIENTE_PASO[e] ? (
@@ -138,72 +270,41 @@ export function DetalleOrden() {
             <p style={{ margin: '0 0 4px' }}>No hay acciones disponibles para su rol en este estado.</p>
             <p className="tenue" style={{ margin: 0 }}>{SIGUIENTE_PASO[e]}</p>
           </>
+        ) : acciones.length === 0 ? (
+          <p className="tenue" style={{ margin: 0 }}>
+            {e === 'APROBADA'
+              ? 'Asigne un mecánico arriba para poder comenzar la reparación.'
+              : 'No hay acciones disponibles para su rol en este estado.'}
+          </p>
         ) : (
-        <div className="acciones">
-          {e === 'RECIBIDA' && (
-            <button className="primario" disabled={ocupado} onClick={() => ejecutar(() =>
-              ordenes.registrarDiagnostico(orden.id,
-                { usarEscaner: true, codigosFalla: [], observaciones: 'Diagnóstico inicial' }))}>
-              Iniciar diagnóstico
-            </button>
-          )}
-
-          {e === 'EN_DIAGNOSTICO' && (
-            <button className="primario" disabled={ocupado} onClick={() =>
-              ejecutar(() => ordenes.transicionar(orden.id, 'COTIZADA'))}>
-              Emitir cotización
-            </button>
-          )}
-
-          {e === 'COTIZADA' && (
-            <>
-              <button className="exito" disabled={ocupado} onClick={() =>
-                ejecutar(() => ordenes.transicionar(orden.id, 'APROBADA', { canal: 'PRESENCIAL' }))}>
-                Registrar aprobación
+          <div className="acciones">
+            {acciones.map((a) => (
+              <button key={a.etiqueta} className={a.clase} disabled={ocupado} onClick={() => cambiarEstado(a)}>
+                {a.etiqueta}
               </button>
-              <button className="peligro" disabled={ocupado} onClick={() =>
-                ejecutar(() => ordenes.transicionar(orden.id, 'RECHAZADA',
-                  { motivo: 'Rechazada por el cliente' }))}>
-                Registrar rechazo
-              </button>
-            </>
-          )}
+            ))}
+          </div>
+        )}
+      </div>
 
-          {e === 'APROBADA' && (
-            <>
-              <select value={mecanicoElegido} onChange={(ev) => setMecanicoElegido(ev.target.value)}
-                      style={{ maxWidth: 230 }} aria-label="Mecánico">
-                <option value="">Elegir mecánico…</option>
-                {mecanicos.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre} · {m.especialidad}</option>
-                ))}
-              </select>
-              <button className="primario" disabled={ocupado || !mecanicoElegido} onClick={() =>
-                ejecutar(() => ordenes.transicionar(orden.id, 'EN_REPARACION',
-                  { idMecanico: mecanicoElegido }))}>
-                Asignar y comenzar
-              </button>
-              {mecanicos.length === 0 && (
-                <span className="tenue">No hay mecánicos disponibles en este momento.</span>
-              )}
-            </>
-          )}
-
-          {e === 'EN_ESPERA_REPUESTO' && (
-            <button className="primario" disabled={ocupado} onClick={() =>
-              ejecutar(() => ordenes.transicionar(orden.id, 'EN_ESPERA_REPUESTO'))}>
-              Reanudar reparación
-            </button>
-          )}
-
-          {(e === 'FACTURADA' || e === 'RECHAZADA') && (
-            <button className="exito" disabled={ocupado} onClick={() =>
-              ejecutar(() => ordenes.transicionar(orden.id, 'ENTREGADA'))}>
-              Registrar entrega
-            </button>
-          )}
-
-        </div>
+      {/* ------------------------------------------------------ historial */}
+      <div className="panel">
+        <h3>Historial</h3>
+        {historial.length === 0 ? (
+          <p className="tenue" style={{ margin: 0 }}>Sin cambios de estado registrados.</p>
+        ) : (
+          <ol className="historial">
+            {[...historial].reverse().map((h, i) => (
+              <li key={`${h.estado}-${h.fecha}-${i}`}>
+                <div className="historial-estado">{etiquetaEstado(h.estado)}</div>
+                <div className="historial-quien">
+                  {h.nombre ?? 'Sistema'}
+                  {h.rol && <span className="tenue"> · {ETIQUETA_ROL[h.rol]}</span>}
+                </div>
+                <time className="historial-cuando tenue" dateTime={h.fecha}>{fechaHora(h.fecha)}</time>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     </>
