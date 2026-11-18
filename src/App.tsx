@@ -1,4 +1,5 @@
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { ETIQUETA_ROL } from './estados'
+import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ProveedorAutenticacion, useAutenticacion } from './autenticacion/Contexto'
 import { Guarda } from './autenticacion/Guarda'
 import { PanelRecepcion } from './paginas/PanelRecepcion'
@@ -7,35 +8,18 @@ import { PortalCliente } from './paginas/PortalCliente'
 import { VistaMecanico } from './paginas/VistaMecanico'
 import { Inventario } from './paginas/Inventario'
 import { Login } from './paginas/Login'
-
-/** Rutas que no llevan el menu interno del taller. */
-const SIN_LATERAL = ['/portal', '/acceso']
+import { NoEncontrada } from './paginas/NoEncontrada'
 
 export default function App() {
   return (
     <ProveedorAutenticacion>
-      <Contenido />
-    </ProveedorAutenticacion>
-  )
-}
-
-function Contenido() {
-  const { pathname } = useLocation()
-
-  if (SIN_LATERAL.some((p) => pathname.startsWith(p))) {
-    return (
       <Routes>
+        {/* Publicas, sin el menu interno del taller */}
         <Route path="/portal" element={<PortalCliente />} />
         <Route path="/acceso" element={<Login />} />
-      </Routes>
-    )
-  }
 
-  return (
-    <div className="app">
-      <Lateral />
-      <main className="contenido">
-        <Routes>
+        {/* Internas: solo estas rutas llevan el menu lateral */}
+        <Route element={<Interno />}>
           <Route path="/" element={<Navigate to="/recepcion" replace />} />
           <Route path="/recepcion" element={
             <Guarda roles={['RECEPCIONISTA', 'ADMINISTRADOR']}><PanelRecepcion /></Guarda>} />
@@ -45,8 +29,21 @@ function Contenido() {
             <Guarda roles={['MECANICO', 'ADMINISTRADOR']}><VistaMecanico /></Guarda>} />
           <Route path="/inventario" element={
             <Guarda roles={['RECEPCIONISTA', 'MECANICO', 'ADMINISTRADOR']}><Inventario /></Guarda>} />
-          <Route path="*" element={<Navigate to="/recepcion" replace />} />
-        </Routes>
+        </Route>
+
+        {/* Cualquier otra direccion: pagina propia, no un salto al login */}
+        <Route path="*" element={<NoEncontrada />} />
+      </Routes>
+    </ProveedorAutenticacion>
+  )
+}
+
+function Interno() {
+  return (
+    <div className="app">
+      <Lateral />
+      <main className="contenido">
+        <Outlet />
       </main>
     </div>
   )
@@ -78,7 +75,7 @@ function Lateral() {
       {sesion && (
         <div className="usuario">
           <div className="nombre">{sesion.nombre}</div>
-          <div className="rol">{sesion.rol}</div>
+          <div className="rol">{ETIQUETA_ROL[sesion.rol]}</div>
           <button className="salir" onClick={salir}>Cerrar sesión</button>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { ETIQUETA_ROL } from '../estados'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAutenticacion } from './Contexto'
 import type { Rol } from '../api/tipos'
@@ -20,7 +21,7 @@ export function Guarda({ roles, children }: { roles?: Rol[]; children: React.Rea
   if (roles && !roles.includes(sesion.rol)) {
     return (
       <Aviso tono="error" titulo="Sin permiso">
-        Su rol ({sesion.rol}) no tiene acceso a esta pantalla.
+        Su rol ({ETIQUETA_ROL[sesion.rol]}) no tiene acceso a esta pantalla.
       </Aviso>
     )
   }

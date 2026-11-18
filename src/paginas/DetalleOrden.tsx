@@ -1,3 +1,4 @@
+import { etiquetaEstado } from '../estados'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ordenes, personal } from '../api/servicios'
@@ -108,7 +109,7 @@ export function DetalleOrden() {
       <div className="panel">
         <h3>Acciones disponibles</h3>
         <p className="tenue" style={{ marginTop: -6 }}>
-          Solo se muestran las transiciones que la máquina de estados permite desde {e.replace(/_/g, ' ')}.
+          Solo se muestran las transiciones que la máquina de estados permite desde «{etiquetaEstado(e)}».
         </p>
         <div className="acciones">
           {e === 'RECIBIDA' && (

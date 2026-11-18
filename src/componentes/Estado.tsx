@@ -1,5 +1,5 @@
 import type { EstadoOrden } from '../api/tipos'
-import { legible } from '../formato'
+import { etiquetaEstado } from '../estados'
 
 /**
  * Insignia de estado.
@@ -22,5 +22,5 @@ const TONO: Record<EstadoOrden, string> = {
 }
 
 export function Estado({ valor }: { valor: EstadoOrden }) {
-  return <span className={`estado ${TONO[valor] ?? 'gris'}`}>{legible(valor).toUpperCase()}</span>
+  return <span className={`estado ${TONO[valor] ?? 'gris'}`}>{etiquetaEstado(valor)}</span>
 }

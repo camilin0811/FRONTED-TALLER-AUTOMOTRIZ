@@ -1,3 +1,4 @@
+import { etiquetaEstado } from '../estados'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { inventario, ordenes } from '../api/servicios'
@@ -102,7 +103,7 @@ export function PanelRecepcion() {
           style={{ maxWidth: 220 }}
         >
           <option value="TODOS">Estado: todos</option>
-          {VIGILADOS.map((e) => <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>)}
+          {VIGILADOS.map((e) => <option key={e} value={e}>{etiquetaEstado(e)}</option>)}
         </select>
       </div>
 

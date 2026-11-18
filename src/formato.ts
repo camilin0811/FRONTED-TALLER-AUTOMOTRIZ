@@ -23,8 +23,14 @@ export const fechaHora = (iso: string | null | undefined) => {
   })
 }
 
-/** "EN_ESPERA_REPUESTO" -> "En espera repuesto" */
-export const legible = (estado: string) => {
-  const t = estado.replace(/_/g, ' ').toLowerCase()
-  return t.charAt(0).toUpperCase() + t.slice(1)
+/** Solo la fecha: "14 nov 2026". */
+export const soloFecha = (iso: string | null | undefined) => {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+}
+
+/** Solo la hora: "8:51 p. m.". */
+export const soloHora = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
 }
