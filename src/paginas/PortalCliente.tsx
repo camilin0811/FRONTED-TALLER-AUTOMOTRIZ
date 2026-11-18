@@ -1,8 +1,8 @@
-import { ETIQUETA_ESTADO } from '../estados'
+import { ETIQUETA_ESTADO, etiquetaEstado } from '../estados'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { publico } from '../api/servicios'
-import type { OrdenDetalle } from '../api/tipos'
+import type { ConsultaPublica, OrdenDetalle } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
 import { Aviso, AvisoError } from '../componentes/Aviso'
 import { ErrorApi } from '../api/cliente'
@@ -37,6 +37,7 @@ export function PortalCliente() {
   const [placa, setPlaca] = useState('')
   const [documento, setDocumento] = useState('')
   const [orden, setOrden] = useState<OrdenDetalle | null>(null)
+  const [historial, setHistorial] = useState<ConsultaPublica['historial']>([])
   const [error, setError] = useState<unknown>(null)
   const [buscando, setBuscando] = useState(false)
   const [sinResultado, setSinResultado] = useState(false)
@@ -51,11 +52,14 @@ export function PortalCliente() {
     setBuscando(true)
     setError(null)
     setOrden(null)
+    setHistorial([])
     setSinResultado(false)
     try {
       // Exige placa y documento: solo con la placa, cualquiera podría ver
       // cuánto paga un tercero por su reparación.
-      setOrden(await publico.consultarOrden(placa, documento))
+      const respuesta = await publico.consultarOrden(placa, documento)
+      setOrden(respuesta.orden)
+      setHistorial(respuesta.historial)
     } catch (e) {
       if (e instanceof ErrorApi && e.status === 404) setSinResultado(true)
       else setError(e)
@@ -170,6 +174,33 @@ export function PortalCliente() {
               <p className="tenue">
                 La factura estará disponible cuando la orden pase a «{ETIQUETA_ESTADO.FACTURADA}».
               </p>
+            )}
+
+            {/* Con una sola orden el historial no aporta nada que no se vea arriba. */}
+            {historial.length > 1 && (
+              <div className="panel">
+                <h3>Historial del vehículo</h3>
+                <table className="tabla-historial">
+                  <thead>
+                    <tr><th>Orden</th><th>Ingreso</th><th>Estado</th>
+                      <th style={{ textAlign: 'right' }}>Total</th></tr>
+                  </thead>
+                  <tbody>
+                    {historial.map((h) => (
+                      <tr key={h.numero ?? h.fechaIngreso}
+                          className={h.numero === orden.numero ? 'fila-actual' : undefined}>
+                        <td>
+                          <strong>{h.numero ?? '—'}</strong>
+                          {h.numero === orden.numero && <span className="tenue"> · la que ve arriba</span>}
+                        </td>
+                        <td>{fecha(h.fechaIngreso)}</td>
+                        <td><span className="estado gris">{etiquetaEstado(h.estado)}</span></td>
+                        <td className="numero">{h.total != null ? dinero(h.total) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
