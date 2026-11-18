@@ -1,11 +1,12 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useAccionConfirmada } from '../componentes/interaccion'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { ETIQUETA_COMPRA, ETIQUETA_MOVIMIENTO } from '../estados'
 import { inventario } from '../api/servicios'
 import type { Movimiento, OrdenCompra, Repuesto } from '../api/tipos'
 import { AvisoError } from '../componentes/Aviso'
 import { Cargando, Vacio } from '../componentes/Cargando'
-import { dinero, fechaHora } from '../formato'
+import { dinero, fecha, fechaHora } from '../formato'
 
 export function Inventario() {
   const [repuestos, setRepuestos] = useState<Repuesto[]>([])
@@ -17,6 +18,15 @@ export function Inventario() {
   const { tieneRol } = useAutenticacion()
   const puedeGestionar = tieneRol('ADMINISTRADOR')
   const puedeRecibir = tieneRol('ADMINISTRADOR', 'RECEPCIONISTA')
+  const [busqueda, setBusqueda] = useState('')
+  const [soloBajoMinimo, setSoloBajoMinimo] = useState(false)
+
+  const visibles = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase()
+    return repuestos
+      .filter((r) => !soloBajoMinimo || r.stock <= r.stockMinimo)
+      .filter((r) => !texto || r.codigo.toLowerCase().includes(texto) || r.nombre.toLowerCase().includes(texto))
+  }, [repuestos, busqueda, soloBajoMinimo])
 
   /** Tras cada paso se refresca la orden y el stock, que la recepcion cambia. */
   async function alActualizar(compra: OrdenCompra) {
@@ -44,13 +54,28 @@ export function Inventario() {
       <div className="encabezado"><h2>Inventario</h2></div>
       <AvisoError error={error} />
 
+      <div className="fila filtros-inventario">
+        <input type="search" placeholder="Buscar por código o nombre" value={busqueda}
+               onChange={(e) => setBusqueda(e.target.value)} aria-label="Buscar repuestos por código o nombre" />
+        <label className="interruptor">
+          <input type="checkbox" checked={soloBajoMinimo} onChange={(e) => setSoloBajoMinimo(e.target.checked)} />
+          Solo bajo mínimo
+        </label>
+      </div>
+
+      {visibles.length === 0 ? (
+        <Vacio>
+          {repuestos.length === 0 ? 'No hay repuestos registrados.' : 'Ningún repuesto coincide con la búsqueda.'}
+        </Vacio>
+      ) : (
+      <div className="tabla-desplazable">
       <table>
         <thead>
           <tr><th>Código</th><th>Repuesto</th><th>Stock</th><th>Mínimo</th>
             <th style={{ textAlign: 'right' }}>Precio</th></tr>
         </thead>
         <tbody>
-          {repuestos.map((r) => (
+          {visibles.map((r) => (
             <Fragment key={r.codigo}>
               <tr className="clicable" onClick={() => alternar(r.codigo)}>
                 <td className="codigos">{r.codigo}</td>
@@ -92,6 +117,11 @@ export function Inventario() {
           ))}
         </tbody>
       </table>
+      </div>
+      )}
+      <p className="tenue" style={{ marginTop: 10 }}>
+        Mostrando {visibles.length} de {repuestos.length} repuestos.
+      </p>
 
       <h3 style={{ marginTop: 28 }}>Órdenes de compra</h3>
       <p className="tenue" style={{ marginTop: -6 }}>
@@ -104,10 +134,11 @@ export function Inventario() {
       {compras.length === 0 ? (
         <Vacio>No hay órdenes de compra. Se generan solas cuando un repuesto llega al mínimo.</Vacio>
       ) : (
+        <div className="tabla-desplazable">
         <table>
           <thead>
-            <tr><th>Número</th><th>Estado</th><th>Repuesto</th><th>Pedido</th><th>Recibido</th>
-              <th>Acciones</th></tr>
+            <tr><th>Número</th><th>Fecha</th><th>Generada por</th><th>Estado</th><th>Repuesto</th>
+              <th>Pedido</th><th>Recibido</th><th>Acciones</th></tr>
           </thead>
           <tbody>
             {compras.map((c) => (
@@ -116,6 +147,7 @@ export function Inventario() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </>
   )
@@ -140,32 +172,32 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
   const pendiente = item ? item.cantidad - item.cantidadRecibida : 0
   const [cantidad, setCantidad] = useState(String(compra.estado === 'BORRADOR' ? item?.cantidad ?? 1 : pendiente))
   const [ocupado, setOcupado] = useState(false)
-  const [error, setError] = useState<unknown>(null)
+  const ejecutarConfirmado = useAccionConfirmada()
 
   const editable = compra.estado === 'BORRADOR' && puedeGestionar
   const recibible = (compra.estado === 'ENVIADA' || compra.estado === 'RECIBIDA_PARCIAL') && puedeRecibir
   const numero = Number(cantidad)
   const valida = Number.isInteger(numero) && numero > 0 && (!recibible || numero <= pendiente)
 
-  async function ejecutar(accion: () => Promise<OrdenCompra>) {
+  async function ejecutar(
+    opciones: { titulo: string; mensaje: string; confirmar: string; exito: string },
+    accion: () => Promise<OrdenCompra>,
+  ) {
     setOcupado(true)
-    setError(null)
-    try {
-      const actualizada = await accion()
-      alActualizar(actualizada)
-      const it = actualizada.items[0]
-      if (it) setCantidad(String(actualizada.estado === 'BORRADOR' ? it.cantidad : it.cantidad - it.cantidadRecibida))
-    } catch (e) {
-      setError(e)
-    } finally {
-      setOcupado(false)
-    }
+    const actualizada = await ejecutarConfirmado(opciones, accion)
+    setOcupado(false)
+    if (!actualizada) return
+    alActualizar(actualizada)
+    const it = actualizada.items[0]
+    if (it) setCantidad(String(actualizada.estado === 'BORRADOR' ? it.cantidad : it.cantidad - it.cantidadRecibida))
   }
 
   return (
     <>
       <tr>
         <td><strong>{compra.numero}</strong></td>
+        <td>{fecha(compra.fecha)}</td>
+        <td>{compra.generadaPor ?? <span className="tenue">Automática</span>}</td>
         <td><span className={`estado ${TONO_COMPRA[compra.estado]}`}>{ETIQUETA_COMPRA[compra.estado]}</span></td>
         <td className="codigos">{item?.codigoRepuesto ?? '—'}</td>
         <td>{item?.cantidad ?? 0}</td>
@@ -179,19 +211,33 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
               {editable && (
                 <>
                   <button className="secundario" disabled={ocupado || !valida || numero === item.cantidad}
-                          onClick={() => ejecutar(() => inventario.ajustarCantidad(compra.id, item.codigoRepuesto, numero))}>
+                          onClick={() => ejecutar({
+                            titulo: 'Cambiar cantidad', confirmar: 'Guardar cantidad',
+                            mensaje: `La orden ${compra.numero} pedirá ${numero} unidades de ${item.codigoRepuesto} en lugar de ${item.cantidad}.`,
+                            exito: `Cantidad actualizada a ${numero}.`,
+                          }, () => inventario.ajustarCantidad(compra.id, item.codigoRepuesto, numero))}>
                     Guardar cantidad
                   </button>
                   <button className="primario" disabled={ocupado || numero !== item.cantidad}
                           title={numero !== item.cantidad ? 'Guarde la cantidad antes de enviar' : undefined}
-                          onClick={() => ejecutar(() => inventario.enviarCompra(compra.id))}>
+                          onClick={() => ejecutar({
+                            titulo: 'Enviar al proveedor', confirmar: 'Enviar',
+                            mensaje: `Se enviará la orden ${compra.numero} por ${item.cantidad} unidades de ${item.codigoRepuesto}. `
+                              + 'Después de enviarla ya no se puede editar.',
+                            exito: `Orden ${compra.numero} enviada al proveedor.`,
+                          }, () => inventario.enviarCompra(compra.id))}>
                     Enviar al proveedor
                   </button>
                 </>
               )}
               {recibible && (
                 <button className="exito" disabled={ocupado || !valida}
-                        onClick={() => ejecutar(() => inventario.recibirCompra(compra.id, item.codigoRepuesto, numero))}>
+                        onClick={() => ejecutar({
+                          titulo: 'Registrar recepción', confirmar: 'Registrar recepción',
+                          mensaje: `Llegaron ${numero} unidades de ${item.codigoRepuesto}. Se sumarán al stock`
+                            + (numero < pendiente ? ` y quedarán ${pendiente - numero} pendientes.` : ' y la orden quedará recibida.'),
+                          exito: `Recepción registrada: +${numero} ${item.codigoRepuesto}.`,
+                        }, () => inventario.recibirCompra(compra.id, item.codigoRepuesto, numero))}>
                   Registrar recepción
                 </button>
               )}
@@ -201,9 +247,6 @@ function FilaCompra({ compra, puedeGestionar, puedeRecibir, alActualizar }: {
           )}
         </td>
       </tr>
-      {error !== null && (
-        <tr className="fila-detalle"><td colSpan={6}><AvisoError error={error} /></td></tr>
-      )}
     </>
   )
 }

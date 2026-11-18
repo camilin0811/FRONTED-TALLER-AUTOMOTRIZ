@@ -180,6 +180,7 @@ export function PortalCliente() {
             {historial.length > 1 && (
               <div className="panel">
                 <h3>Historial del vehículo</h3>
+                <div className="tabla-desplazable">
                 <table className="tabla-historial">
                   <thead>
                     <tr><th>Orden</th><th>Ingreso</th><th>Estado</th>
@@ -200,6 +201,7 @@ export function PortalCliente() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>

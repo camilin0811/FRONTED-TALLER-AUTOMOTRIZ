@@ -276,14 +276,14 @@ label {
   display: block; font-size: 11px; color: var(--tinta-suave); margin-bottom: 5px;
   text-transform: uppercase; letter-spacing: .08em;
 }
-input, select {
+input, select, textarea {
   font: inherit; padding: 9px 12px; border: 1px solid var(--borde-fuerte);
   border-radius: 5px; width: 100%;
   background: var(--carbono); color: var(--tinta);
   transition: border-color .15s, box-shadow .15s;
 }
 input::placeholder { color: var(--tinta-tenue); }
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--rojo);
   box-shadow: 0 0 0 3px rgba(225, 6, 0, .22);
 }
@@ -583,6 +583,125 @@ a.boton-enlace {
 a.boton-enlace.primario { color: #fff; }
 a.boton-enlace.primario:hover { color: #fff; }
 
+/* ------------------------------------------------- tablas en celular */
+
+/* La tabla conserva su forma y se desplaza en horizontal dentro de su
+   caja: la pagina nunca se desborda a lo ancho. */
+.tabla-desplazable { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radio); }
+.tabla-desplazable table { min-width: 560px; }
+.tabla-desplazable td, .tabla-desplazable th { white-space: nowrap; }
+
+/* ------------------------------------------------------- menu lateral */
+
+.lateral-cabecera { display: block; }
+.boton-menu {
+  display: none; place-items: center;
+  width: 42px; height: 42px; padding: 0; font-size: 20px; line-height: 1;
+  background: transparent; color: var(--tinta); border: 1px solid var(--borde-fuerte);
+}
+.boton-menu:hover { border-color: var(--rojo); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------------------------------------------------- modal y toasts */
+
+body.con-modal { overflow: hidden; }
+.modal-fondo {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: 16px;
+  background: rgba(5, 6, 8, .72); backdrop-filter: blur(3px);
+  animation: aparecer .15s ease both;
+}
+.modal {
+  width: 100%; max-width: 460px;
+  background: var(--panel); border: 1px solid var(--borde);
+  border-top: 3px solid var(--rojo); border-radius: var(--radio-grande);
+  box-shadow: var(--sombra-alta); padding: 24px;
+}
+.modal-titulo { margin: 0 0 10px; font-size: 19px; text-transform: uppercase; letter-spacing: .05em; }
+.modal-cuerpo { color: var(--tinta-suave); }
+.modal-cuerpo p { margin: 0 0 8px; }
+.modal-pie { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+/* Confirmar algo que rechaza o no se deshace: rojo lleno, no contorno. */
+.peligro-lleno { background: var(--rojo-oscuro); color: #fff; border-color: var(--rojo); }
+.peligro-lleno:hover:not(:disabled) { background: var(--rojo); }
+
+.toasts {
+  position: fixed; right: 20px; bottom: 20px; z-index: 110;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  max-width: 380px; padding: 12px 14px;
+  background: var(--panel-alto); border: 1px solid var(--borde-fuerte);
+  border-left: 4px solid var(--ok-tinta); border-radius: var(--radio);
+  box-shadow: var(--sombra-alta); animation: aparecer .2s ease both;
+}
+.toast.error { border-left-color: var(--rojo); }
+.toast-icono { font-weight: 700; color: var(--ok-tinta); }
+.toast.error .toast-icono { color: var(--error-tinta); }
+.toast-texto { flex: 1; }
+.toast-cerrar {
+  background: transparent; border: none; color: var(--tinta-tenue);
+  padding: 0 4px; font-size: 18px; line-height: 1;
+}
+.toast-cerrar:hover { color: #fff; }
+
+/* -------------------------------------------------- detalle de orden */
+
+.titulo-orden { display: flex; gap: 12px; align-items: center; margin-left: auto; }
+.encabezado-acciones { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.selector-mecanico { max-width: 320px; }
+
+.historial { list-style: none; margin: 0; padding: 0; }
+.historial li {
+  display: grid; grid-template-columns: minmax(130px, 1fr) 2fr auto; gap: 4px 14px;
+  align-items: baseline; padding: 10px 0 10px 16px; position: relative;
+  border-bottom: 1px solid var(--borde);
+}
+.historial li:last-child { border-bottom: none; }
+.historial li::before {
+  content: ''; position: absolute; left: 0; top: 16px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--rojo);
+}
+.historial-estado { font-weight: 600; }
+.historial-cuando { font-size: 12px; white-space: nowrap; }
+@media (max-width: 520px) {
+  .historial li { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------ nueva orden */
+
+.nueva-orden .panel h3 { color: var(--tinta); }
+.fila-busqueda { align-items: flex-start; }
+.fila-busqueda > button { flex: 0 0 auto; margin-top: 22px; }
+.resultado-busqueda { margin: 0; color: var(--ok-tinta); }
+.selector-tipo { border: none; padding: 0; margin: 0 0 14px; }
+.selector-tipo legend {
+  font-size: 11px; color: var(--tinta-suave); text-transform: uppercase;
+  letter-spacing: .08em; margin-bottom: 6px; padding: 0;
+}
+.selector-tipo label {
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 18px;
+  font-size: 14px; color: var(--tinta); text-transform: none; letter-spacing: 0;
+}
+.selector-tipo input { width: auto; }
+.contador { text-align: right; font-size: 11px; color: var(--tinta-tenue); margin-top: 2px; }
+textarea { resize: vertical; min-height: 80px; }
+a.boton-enlace.secundario { color: var(--metal); border-color: var(--borde-fuerte); }
+a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(255, 255, 255, .06); }
+
+/* -------------------------------------------------------- inventario */
+
+.filtros-inventario { align-items: center; margin-bottom: 14px; }
+.interruptor {
+  display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto !important;
+  font-size: 13px; color: var(--tinta); text-transform: none; letter-spacing: 0; margin: 0;
+}
+.interruptor input { width: 18px; height: 18px; accent-color: var(--rojo); }
+
 /* ------------------------------------------------ pagina no encontrada */
 
 .no-encontrada {
@@ -627,19 +746,35 @@ a.boton-enlace.primario:hover { color: #fff; }
 
 @media (max-width: 760px) {
   .app { flex-direction: column; }
-  .lateral { width: 100%; padding: 12px 0; border-right: none; border-bottom: 1px solid var(--borde); }
-  .lateral nav { display: flex; overflow-x: auto; }
-  .lateral nav a { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
-  .lateral nav a.activo { border-left: none; border-bottom-color: var(--rojo); }
+  /* Menu lateral plegado en un boton: solo la cabecera queda visible. */
+  .lateral {
+    width: 100%; padding: 10px 0; border-right: none; border-bottom: 1px solid var(--borde);
+    position: sticky; top: 0; z-index: 30;
+  }
+  .lateral-cabecera { display: flex; align-items: center; justify-content: space-between; padding-right: 14px; }
+  .boton-menu { display: inline-grid; }
   .lateral h1 { margin-bottom: 2px; }
-  .lateral .lema { margin-bottom: 10px; }
-  .lateral .usuario { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding-top: 10px; }
-  .lateral .usuario .rol { margin-bottom: 0; }
-  .lateral .usuario .salir { width: auto; margin-left: auto; }
+  .lateral .lema { margin-bottom: 0; }
+  .lateral-menu { display: none; }
+  .lateral.abierto .lateral-menu { display: block; padding-top: 10px; animation: aparecer .2s ease both; }
+  .lateral .usuario { margin-top: 10px; }
   .contenido { padding: 16px; }
   .maestro-detalle { flex-direction: column; }
   .maestro { width: 100%; }
   .encabezado h2 { font-size: 20px; }
+  .encabezado-acciones { width: 100%; justify-content: space-between; }
+  .titulo-orden { margin-left: 0; }
+  .fila > * { flex-basis: 100%; }
+  .fila-busqueda { flex-wrap: nowrap; }
+  .fila-busqueda > .campo { flex: 1 1 auto; min-width: 0; }
+  .boton-consulta { margin-top: 0; }
+  .selector-mecanico { max-width: none; flex: 1 1 100%; }
+  .acciones-compra input { width: 70px; }
+  .modal { padding: 20px; }
+  .modal-pie { flex-direction: column-reverse; }
+  .modal-pie button { width: 100%; }
+  .toasts { left: 12px; right: 12px; bottom: 12px; }
+  .toast { max-width: none; }
   .heroe { grid-template-columns: 1fr; min-height: 0; padding-top: 20px; }
   .heroe-coche { height: 240px; }
   .tarjeta-acceso { max-width: none; }
