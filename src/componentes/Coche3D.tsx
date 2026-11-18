@@ -173,7 +173,9 @@ function Piso() {
 export default function Coche3D({ animado }: { animado: boolean }) {
   return (
     <Canvas
-      shadows
+      /* "percentage" es PCFShadowMap: fiber usa por defecto PCFSoftShadowMap,
+         que three r180+ declara obsoleto y avisa en consola. */
+      shadows="percentage"
       dpr={[1, 1.75]}
       camera={{ position: [4.4, 1.7, 4.8], fov: 30 }}
       /* Si el coche no puede dibujarse, mejor nada que un lienzo roto. */
