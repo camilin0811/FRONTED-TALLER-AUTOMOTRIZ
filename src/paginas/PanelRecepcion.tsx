@@ -1,6 +1,7 @@
-import { etiquetaEstado } from '../estados'
+import { EN_PROCESO, POR_ENTREGAR, etiquetaEstado } from '../estados'
+import { useAutenticacion } from '../autenticacion/Contexto'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { inventario, ordenes } from '../api/servicios'
 import type { OrdenCompra, OrdenResumen, EstadoOrden } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
@@ -8,17 +9,28 @@ import { Aviso, AvisoError } from '../componentes/Aviso'
 import { Cargando, Vacio } from '../componentes/Cargando'
 import { dinero, fecha } from '../formato'
 
-/** Estados que el tablero vigila a diario. */
-const VIGILADOS: EstadoOrden[] = [
-  'RECIBIDA', 'EN_DIAGNOSTICO', 'COTIZADA', 'APROBADA',
-  'EN_REPARACION', 'EN_ESPERA_REPUESTO', 'CERRADA', 'FACTURADA',
-]
+/**
+ * El tablero muestra todo vehiculo que sigue en el taller: las ordenes
+ * activas (en trabajo) y las que solo esperan la entrega. Las rechazadas
+ * entran porque tambien hay que registrar su entrega.
+ */
+const VIGILADOS: EstadoOrden[] = [...EN_PROCESO, ...POR_ENTREGAR]
+
+type Filtro = EstadoOrden | 'TODOS' | 'ACTIVAS' | 'POR_ENTREGAR'
+
+function cumpleFiltro(estado: EstadoOrden, filtro: Filtro): boolean {
+  if (filtro === 'TODOS') return true
+  if (filtro === 'ACTIVAS') return EN_PROCESO.includes(estado)
+  if (filtro === 'POR_ENTREGAR') return POR_ENTREGAR.includes(estado)
+  return estado === filtro
+}
 
 export function PanelRecepcion() {
   const navegar = useNavigate()
+  const { tieneRol } = useAutenticacion()
   const [lista, setLista] = useState<OrdenResumen[]>([])
   const [compras, setCompras] = useState<OrdenCompra[]>([])
-  const [filtro, setFiltro] = useState<EstadoOrden | 'TODOS'>('TODOS')
+  const [filtro, setFiltro] = useState<Filtro>('TODOS')
   const [busqueda, setBusqueda] = useState('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<unknown>(null)
@@ -48,7 +60,7 @@ export function PanelRecepcion() {
   const visibles = useMemo(() => {
     const texto = busqueda.trim().toUpperCase()
     return lista
-      .filter((o) => filtro === 'TODOS' || o.estado === filtro)
+      .filter((o) => cumpleFiltro(o.estado, filtro))
       .filter((o) => !texto
         || o.placa?.toUpperCase().includes(texto)
         || o.numero?.toUpperCase().includes(texto)
@@ -56,12 +68,18 @@ export function PanelRecepcion() {
       .sort((a, b) => b.fechaIngreso.localeCompare(a.fechaIngreso))
   }, [lista, filtro, busqueda])
 
-  const enProceso = lista.filter((o) => ['EN_REPARACION', 'EN_DIAGNOSTICO', 'RECIBIDA'].includes(o.estado)).length
+  const activas = lista.filter((o) => EN_PROCESO.includes(o.estado)).length
+  const porEntregar = lista.filter((o) => POR_ENTREGAR.includes(o.estado)).length
   const esperanAprobacion = lista.filter((o) => o.estado === 'COTIZADA').length
   const sinRepuesto = lista.filter((o) => o.estado === 'EN_ESPERA_REPUESTO').length
   const facturado = lista.filter((o) => ['FACTURADA'].includes(o.estado))
     .reduce((suma, o) => suma + (o.total ?? 0), 0)
-  const comprasPendientes = compras.filter((c) => c.estado === 'BORRADOR')
+  // Cada aviso de compras solo aparece a quien puede atenderlo: revisar y
+  // enviar es del administrador; recibir la mercancia, tambien de recepcion.
+  const porRevisar = tieneRol('ADMINISTRADOR') ? compras.filter((c) => c.estado === 'BORRADOR') : []
+  const porRecibir = tieneRol('ADMINISTRADOR', 'RECEPCIONISTA')
+    ? compras.filter((c) => c.estado === 'ENVIADA' || c.estado === 'RECIBIDA_PARCIAL')
+    : []
 
   if (cargando) return <Cargando que="el tablero" />
 
@@ -75,17 +93,23 @@ export function PanelRecepcion() {
       <AvisoError error={error} />
 
       <div className="indicadores">
-        <Indicador rotulo="En proceso" valor={enProceso} />
+        <Indicador rotulo="Activas" valor={activas} />
         <Indicador rotulo="Esperan aprobación" valor={esperanAprobacion} tono="aviso" />
         <Indicador rotulo="Sin repuesto" valor={sinRepuesto} tono="error" />
         <Indicador rotulo="Facturado" valor={dinero(facturado)} tono="ok" />
       </div>
 
-      {comprasPendientes.map((c) => (
-        <Aviso key={c.id} tono="alerta" titulo="Reposición automática generada">
-          La orden de compra <strong>{c.numero}</strong> quedó en borrador
+      {porRevisar.map((c) => (
+        <Aviso key={c.id} tono="alerta" titulo="Orden de compra por revisar">
+          La reposición automática generó <strong>{c.numero}</strong>
           {c.items[0] && <> para <strong>{c.items[0].codigoRepuesto}</strong> × {c.items[0].cantidad}</>}.
-          Requiere revisión antes de enviarse al proveedor.
+          Revise la cantidad y envíela al proveedor. <Link to="/inventario">Ir a inventario</Link>
+        </Aviso>
+      ))}
+      {porRecibir.map((c) => (
+        <Aviso key={c.id} tono="info" titulo="Mercancía por recibir">
+          La orden de compra <strong>{c.numero}</strong> fue enviada al proveedor.
+          Cuando llegue, registre la recepción para sumar el stock. <Link to="/inventario">Ir a inventario</Link>
         </Aviso>
       ))}
 
@@ -98,19 +122,23 @@ export function PanelRecepcion() {
         />
         <select
           value={filtro}
-          onChange={(e) => setFiltro(e.target.value as EstadoOrden | 'TODOS')}
+          onChange={(e) => setFiltro(e.target.value as Filtro)}
           aria-label="Filtrar por estado"
           style={{ maxWidth: 220 }}
         >
-          <option value="TODOS">Estado: todos</option>
-          {VIGILADOS.map((e) => <option key={e} value={e}>{etiquetaEstado(e)}</option>)}
+          <option value="TODOS">Todas en el taller</option>
+          <option value="ACTIVAS">Activas (en trabajo)</option>
+          <option value="POR_ENTREGAR">Por entregar</option>
+          <optgroup label="Por estado">
+            {VIGILADOS.map((e) => <option key={e} value={e}>{etiquetaEstado(e)}</option>)}
+          </optgroup>
         </select>
       </div>
 
       {visibles.length === 0 ? (
         <Vacio>
           {lista.length === 0
-            ? 'No hay órdenes activas. Cuando se reciba un vehículo aparecerá aquí.'
+            ? 'No hay vehículos en el taller. Cuando se reciba uno aparecerá aquí.'
             : 'Ninguna orden coincide con la búsqueda.'}
         </Vacio>
       ) : (
@@ -137,7 +165,8 @@ export function PanelRecepcion() {
       )}
 
       <p className="tenue" style={{ marginTop: 14 }}>
-        Mostrando {visibles.length} de {lista.length} órdenes activas
+        Mostrando {visibles.length} de {lista.length} órdenes en el taller:
+        {' '}{activas} {activas === 1 ? 'activa' : 'activas'} y {porEntregar} por entregar.
       </p>
     </>
   )
