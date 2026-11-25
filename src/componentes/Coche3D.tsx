@@ -199,7 +199,7 @@ function texturaFundido(): CanvasTexture {
 }
 
 function FundidoPiso() {
-  const textura = useMemo(texturaFundido, [])
+  const textura = useMemo(() => texturaFundido(), [])
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} renderOrder={2}>
@@ -217,7 +217,7 @@ function FundidoPiso() {
 
 /** Halo rojo tenue en el piso, debajo del auto: suma luz, no la tapa. */
 function Halo() {
-  const textura = useMemo(texturaHalo, [])
+  const textura = useMemo(() => texturaHalo(), [])
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]} renderOrder={3}>
       <planeGeometry args={[6, 6]} />
