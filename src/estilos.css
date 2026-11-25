@@ -629,8 +629,10 @@ input:focus, select:focus, textarea:focus {
 .hud-linea line { stroke: var(--rojo-vivo); stroke-width: 1.5; stroke-dasharray: 4 3; transition: opacity .2s ease; }
 .hud-linea circle { fill: var(--rojo-vivo); transition: opacity .2s ease; }
 .hud-tarjeta {
-  position: absolute; top: 4%; left: 3%; z-index: 40;
-  width: min(300px, 46%); padding: 14px 16px;
+  /* A un costado y centrada en alto, dentro de la vitrina: la escena se corre
+     a la derecha para que el auto quede en el espacio libre. */
+  position: absolute; left: 10px; top: 0; bottom: 0; margin: auto 0; height: fit-content; z-index: 40;
+  width: min(250px, 40%); padding: 12px 14px;
   background: rgba(13, 15, 19, .72); backdrop-filter: blur(10px) saturate(1.2);
   border: 1px solid rgba(225, 6, 0, .55); border-left: 3px solid var(--rojo);
   border-radius: var(--radio); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
@@ -654,13 +656,92 @@ input:focus, select:focus, textarea:focus {
 .hud-volver:hover { border-color: var(--rojo); color: #fff; }
 
 @media (max-width: 760px) {
-  /* En el celular la tarjeta ocupa la franja superior, compacta: el punto
-     queda en la mitad baja del encuadre y el auto sigue a la vista. */
-  .hud-tarjeta { top: 2%; left: 3%; right: 3%; width: auto; padding: 10px 12px; }
+  /* En el celular la tarjeta va debajo de la escena, compacta: la escena se
+     corre hacia arriba y el auto queda a la vista encima de ella. */
+  .hud-tarjeta { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; margin: 0; padding: 10px 12px; }
   .hud-texto { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0 6px; font-size: 12px; }
   .hud-servicio { font-size: 15px; }
   .hud-volver { position: absolute; top: 8px; right: 10px; margin: 0; padding: 4px 10px; }
   .punto-zona { width: 36px; height: 36px; }
+}
+
+/* Selector de modo: Real, Escaner y Plano. */
+.selector-modo {
+  position: absolute; top: 8px; right: 8px; z-index: 45; display: flex; gap: 2px; padding: 3px;
+  background: rgba(13, 15, 19, .7); backdrop-filter: blur(8px);
+  border: 1px solid var(--borde-fuerte); border-radius: 999px;
+  animation: aparecer .5s ease .3s both;
+}
+.selector-modo button {
+  padding: 5px 12px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+  color: var(--tinta-suave); background: transparent; border: none; border-radius: 999px;
+  transition: background .2s ease, color .2s ease;
+}
+.selector-modo button:hover { color: #fff; }
+.selector-modo button.activo { background: var(--rojo); color: #fff; }
+.selector-modo button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* Etiquetas del lienzo (indicadores y cotas): nunca capturan el puntero. */
+.html-pasivo, .html-pasivo * { pointer-events: none; }
+
+/* Escaner: indicadores de diagnostico que flotan junto al auto. */
+.indicador-diag {
+  display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; white-space: nowrap;
+  font-size: 10px; line-height: 1.2; color: #d9f8ff;
+  background: rgba(4, 22, 34, .72); border: 1px solid rgba(56, 225, 255, .55); border-radius: 4px;
+  box-shadow: 0 0 12px rgba(56, 225, 255, .25);
+  opacity: 0; transform: translateY(6px); transition: opacity .4s ease, transform .4s ease;
+}
+.indicador-etiqueta { letter-spacing: .1em; text-transform: uppercase; color: #7fe9ff; }
+.indicador-valor { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.modo-escaner .indicador-diag { opacity: 1; transform: none; animation: flotar 3.2s ease-in-out .4s infinite alternate; }
+.modo-escaner .indicador-bateria { animation-delay: 1.2s; }
+.modo-escaner .indicador-frenos { animation-delay: 2s; }
+.modo-escaner.con-zona .indicador-diag { opacity: .25; }
+@keyframes flotar { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+
+.escaner-estado, .plano-rotulo {
+  position: absolute; top: 10px; left: 10px; z-index: 36; pointer-events: none;
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  animation: aparecer .4s ease both;
+}
+.escaner-estado { display: flex; align-items: center; gap: 6px; color: #7fe9ff; }
+.escaner-led { width: 7px; height: 7px; border-radius: 50%; background: #38e1ff; box-shadow: 0 0 8px #38e1ff; animation: parpadeo 1.4s ease-in-out infinite; }
+@keyframes parpadeo { 50% { opacity: .3; } }
+.plano-rotulo {
+  display: flex; flex-direction: column; gap: 2px; padding: 5px 9px; color: #dbe8ff;
+  border: 1px solid rgba(219, 232, 255, .6);
+}
+.plano-rotulo strong { font-family: var(--exhibicion); font-size: 11px; letter-spacing: .16em; }
+
+/* Plano: etiquetas de las cotas, sobre un fondo del color del papel para que
+   corten la linea como en un dibujo tecnico. */
+.cota-etiqueta {
+  display: inline-block; padding: 1px 5px; white-space: nowrap;
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: #dbe8ff; background: #0d2a4a; font-variant-numeric: tabular-nums;
+  opacity: 0; transition: opacity .35s ease;
+}
+.cota-etiqueta.vertical { transform: rotate(-90deg); }
+.modo-plano .cota-etiqueta { opacity: 1; transition-delay: .35s; }
+
+/* Puntos segun el modo: cian en el escaner, trazo blanco en el plano. */
+.punto-zona-nucleo, .punto-zona::before, .punto-zona::after { transition: background .4s ease, border-color .4s ease; }
+.modo-escaner .punto-zona-nucleo { background: #38e1ff; box-shadow: 0 0 10px rgba(56, 225, 255, .8); }
+.modo-escaner .punto-zona::before, .modo-escaner .punto-zona::after { border-color: #38e1ff; }
+.modo-plano .punto-zona-nucleo { background: #0d2a4a; border-color: #fff; box-shadow: none; }
+.modo-plano .punto-zona::before, .modo-plano .punto-zona::after { border-color: #dbe8ff; }
+.modo-escaner .punto-zona.activo .punto-zona-nucleo, .modo-plano .punto-zona.activo .punto-zona-nucleo { background: #fff; border-color: var(--rojo-vivo); }
+
+/* Va despues de las reglas de arriba para poder corregirlas. */
+@media (max-width: 760px) {
+  .selector-modo { left: 0; right: 0; margin: 0 auto; width: fit-content; }
+  .selector-modo button { padding: 5px 14px; }
+  /* El rotulo y el estado bajan al pie de la vitrina, donde estaba la ayuda. */
+  .escaner-estado, .plano-rotulo { top: auto; bottom: 10px; left: 0; right: 0; margin: 0 auto; width: fit-content; }
+  .escaparate:not(.modo-real) .escaparate-ayuda { display: none; }
+  .indicador-diag { padding: 3px 6px; font-size: 9px; }
+  .indicador-valor { font-size: 11px; }
 }
 
 /* Credito del modelo 3D (CC BY 4.0) en el pie. */
@@ -911,7 +992,7 @@ a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(2
   .toasts { left: 12px; right: 12px; bottom: 12px; }
   .toast { max-width: none; }
   .heroe { grid-template-columns: 1fr; min-height: 0; padding-top: 20px; }
-  .heroe-coche { height: 320px; }
+  .heroe-coche { height: 340px; }
   .tarjeta-acceso { max-width: none; }
   .metricas { gap: 10px; }
 }
@@ -926,6 +1007,8 @@ a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(2
   .hueso { animation: none; }
   .escaparate-espera { transition: none; }
   .punto-zona::before, .punto-zona::after { animation: none; opacity: .5; transform: scale(1.2); }
+  .modo-escaner .indicador-diag, .escaner-led { animation: none; }
+  .indicador-diag, .cota-etiqueta { transition: none; }
   /* La rueda deja de girar pero el anillo queda visible: el texto ya informa. */
   .girando { animation: none; }
 }

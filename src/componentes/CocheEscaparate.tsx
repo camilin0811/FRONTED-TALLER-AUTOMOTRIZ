@@ -1,6 +1,13 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ZONAS, servicio, type IdZona } from '../servicios'
-import type { PuntoEnPantalla } from './Coche3D'
+import type { Modo, PuntoEnPantalla, Reserva } from './Coche3D'
+
+const MODOS: { id: Modo; nombre: string }[] = [
+  { id: 'real', nombre: 'Real' },
+  { id: 'escaner', nombre: 'Escáner' },
+  { id: 'plano', nombre: 'Plano' },
+]
+const SIN_RESERVA: Reserva = { izquierda: 0, abajo: 0 }
 
 /**
  * Escaparate del auto 3D. Decide ANTES de descargar nada:
@@ -14,8 +21,11 @@ import type { PuntoEnPantalla } from './Coche3D'
  * - prefers-reduced-motion -> sin giro automatico, sin parallax y la camara
  *   salta a cada zona en lugar de volar.
  *
- * Con `interactivo`, ademas, muestra la tarjeta HUD de la zona elegida y la
- * linea que la une con su punto en el auto.
+ * Con `interactivo`, ademas, muestra el selector de modo (Real, Escaner,
+ * Plano), la tarjeta HUD de la zona elegida y la linea que la une con su
+ * punto en el auto. La tarjeta va a un costado en escritorio y debajo en el
+ * celular, siempre dentro de la vitrina, y la escena se corre para que el
+ * auto quede en el espacio libre.
  */
 const Coche3D = lazy(() => import('./Coche3D'))
 
@@ -44,6 +54,8 @@ export function CocheEscaparate({ className, interactivo = false }: { className?
   const [cargado, setCargado] = useState(false)
   const [zona, setZona] = useState<IdZona | null>(null)
   const [zoom, setZoom] = useState(false)
+  const [modo, setModo] = useState<Modo>('real')
+  const [reserva, setReserva] = useState<Reserva>(SIN_RESERVA)
 
   useEffect(() => {
     const el = caja.current
@@ -94,12 +106,29 @@ export function CocheEscaparate({ className, interactivo = false }: { className?
     l.style.opacity = opacidad; c.style.opacity = opacidad
   }, [])
 
+  // Cuanto tapa la tarjeta, para que la escena se corra y el auto quede en el
+  // espacio libre: a la izquierda en escritorio, abajo en el celular.
+  useLayoutEffect(() => {
+    const medir = () => {
+      const t = tarjeta.current; const c = caja.current
+      if (!zona || !t || !c) { setReserva(SIN_RESERVA); return }
+      const rc = c.getBoundingClientRect(); const rt = t.getBoundingClientRect()
+      const abajo = rt.width > rc.width * 0.6
+      setReserva(abajo
+        ? { izquierda: 0, abajo: Math.round(rc.bottom - rt.top + 8) }
+        : { izquierda: Math.round(rt.right - rc.left + 12), abajo: 0 })
+    }
+    medir()
+    window.addEventListener('resize', medir)
+    return () => window.removeEventListener('resize', medir)
+  }, [zona])
+
   const datos = zona ? ZONAS.find((z) => z.id === zona) : null
   const srv = datos ? servicio(datos.servicio) : null
 
   return (
     <div
-      className={`escaparate ${interactivo ? 'interactivo' : ''} ${zona ? 'con-zona' : ''} ${className ?? ''}`}
+      className={`escaparate modo-${modo} ${interactivo ? 'interactivo' : ''} ${zona ? 'con-zona' : ''} ${className ?? ''}`}
       ref={caja}
       // La rueda del raton hace zoom solo despues de tocar el auto: si no, al
       // pasar por encima con la rueda la pagina dejaria de desplazarse.
@@ -111,15 +140,37 @@ export function CocheEscaparate({ className, interactivo = false }: { className?
           <Coche3D
             animado={animado} activo={enPantalla && pestanaVisible} alCargar={alCargar}
             interactivo={interactivo} zoomHabilitado={zoom}
-            zonaActiva={zona} alElegirZona={setZona} alProyectar={alProyectar}
+            modo={modo} zonaActiva={zona} reserva={reserva} alElegirZona={setZona} alProyectar={alProyectar}
           />
         </Suspense>
       )}
       {/* El fondo estatico cubre la espera y se desvanece con el auto listo. */}
       <div className={`coche-fallback escaparate-espera ${cargado ? 'oculto' : ''}`} aria-hidden />
 
+      {interactivo && cargado && (
+        <div className="selector-modo" role="radiogroup" aria-label="Modo de vista del auto">
+          {MODOS.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={modo === m.id}
+                    className={modo === m.id ? 'activo' : ''} onClick={() => setModo(m.id)}>
+              {m.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+
       {interactivo && cargado && !zona && (
-        <p className="escaparate-ayuda" aria-hidden>Arrastre para girar · toque un punto</p>
+        <p className="escaparate-ayuda" aria-hidden>
+          {modo === 'plano' ? 'Toque un punto para ver el servicio' : 'Arrastre para girar · toque un punto'}
+        </p>
+      )}
+      {interactivo && cargado && modo === 'escaner' && !zona && (
+        <div className="escaner-estado" aria-hidden><span className="escaner-led" />Escáner OBD-II · en línea</div>
+      )}
+      {interactivo && cargado && modo === 'plano' && !zona && (
+        <div className="plano-rotulo" aria-hidden>
+          <strong>Plano técnico</strong>
+          <span>Vista lateral izquierda · cotas en mm</span>
+        </div>
       )}
 
       {interactivo && datos && srv && (
