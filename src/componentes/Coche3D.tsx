@@ -2,7 +2,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import type { MutableRefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
-  AdaptiveDpr, ContactShadows, Environment, Html, Lightformer, MeshReflectorMaterial, OrbitControls,
+  AdaptiveDpr, ContactShadows, Environment, Html, Lightformer, Line, MeshReflectorMaterial, OrbitControls,
   PerformanceMonitor, useGLTF,
 } from '@react-three/drei'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
@@ -11,8 +11,8 @@ import {
   Float32BufferAttribute, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, Ray,
   RepeatWrapping, SRGBColorSpace, ShaderMaterial, Vector3,
 } from 'three'
-import type { Fog, Group, Material, Object3D, PerspectiveCamera, Scene } from 'three'
-import type { OrbitControls as ControlesOrbita } from 'three-stdlib'
+import type { Fog, Group, Material, MeshStandardMaterial, Object3D, PerspectiveCamera, Scene } from 'three'
+import type { Line2, OrbitControls as ControlesOrbita } from 'three-stdlib'
 import { ZONAS, type IdZona } from '../servicios'
 
 /**
@@ -43,6 +43,13 @@ export type Modo = 'real' | 'escaner' | 'plano'
 /** Pixeles del lienzo que tapa la tarjeta: a la izquierda (escritorio) o abajo (celular). */
 export interface Reserva { izquierda: number; abajo: number }
 export interface PuntoEnPantalla { x: number; y: number; visible: boolean }
+/** Lo que pasa en el formulario de acceso, para que el auto reaccione. */
+export type EstadoAcceso = 'reposo' | 'usuario' | 'clave' | 'entrando' | 'exito' | 'error'
+export interface SenalAcceso {
+  estado: EstadoAcceso
+  /** Sube con cada tecla de la clave: cada una da un pequeno destello. */
+  pulso: number
+}
 
 /** Vista general: distancia de la camara y punto al que mira. */
 const DISTANCIA_GENERAL = 6.3
@@ -70,6 +77,8 @@ const TRAZO_PLANO = '#dbe8ff'
 const CIAN = '#38e1ff'
 const AZUL_HOLO = '#0a4cff'
 const ROJO_HALO = '#e1140a'
+const ROJO_ALERTA = '#ff1a10'
+const CIAN_CLARO = '#a6f0ff'
 /** Radio del piso reflectante; mas alla solo hay un anillo liso del color de fondo. */
 const RADIO_PISO = 7
 
@@ -132,7 +141,8 @@ interface Medidas {
   techoZ: number
   /** Medidas reales del modelo, en milimetros. */
   mm: { largo: number; alto: number; ejes: number; rueda: number }
-  indicadores: { id: string; etiqueta: string; valor: string; posicion: Vector3 }[]
+  /** `ancla`: punto del auto al que apunta el indicador con una linea guia. */
+  indicadores: { id: string; etiqueta: string; valor: string; posicion: Vector3; ancla?: Vector3 }[]
 }
 
 /**
@@ -167,7 +177,13 @@ function medir(escena: Object3D): Medidas {
   if (rin) {
     const c = rin.getCenter(new Vector3())
     puntos.push({ id: 'frenos', posicion: aGrupo(rin.max.x + 0.02, c.y, c.z), normal: new Vector3(1, 0, 0.1) })
-    indicadores.push({ id: 'frenos', etiqueta: 'Frenos', valor: 'Pastillas 78 %', posicion: aGrupo(rin.max.x + 0.1, rin.max.y + 0.45, c.z + 0.1) })
+    // Bajo y detras de la rueda (lejos del punto del motor, que va en el capo, y
+    // del de frenos, en el centro del rin), con una linea al borde del rin.
+    indicadores.push({
+      id: 'frenos', etiqueta: 'Frenos', valor: 'Pastillas 78 %',
+      posicion: aGrupo(rin.max.x + 0.3, c.y - 0.16, c.z - 1.4),
+      ancla: aGrupo(rin.max.x, c.y - (rin.max.y - rin.min.y) * 0.3, c.z - (rin.max.z - rin.min.z) * 0.3),
+    })
   }
   // Suspension: sobre la rueda trasera, donde va el amortiguador.
   if (trasera) {
@@ -228,6 +244,9 @@ const VERTICE_HOLO = /* glsl */ `
 `
 const FRAGMENTO_HOLO = /* glsl */ `
   uniform float uOpacidad;
+  uniform float uEnergia;
+  uniform float uAlerta;
+  uniform vec3 uRojo;
   uniform float uBarrido;
   uniform vec3 uCian;
   uniform vec3 uAzul;
@@ -241,7 +260,9 @@ const FRAGMENTO_HOLO = /* glsl */ `
     float banda = exp(-pow((vZ - uBarrido) / 0.05, 2.0));
     float estela = step(uBarrido, vZ) * exp(-(vZ - uBarrido) / 0.7);
     vec3 color = mix(uAzul, uCian, f) + uCian * banda * 1.4;
-    float alfa = (0.04 + 0.5 * f + 0.9 * banda + 0.12 * estela) * uOpacidad;
+    // Reaccion al formulario: pulso de brillo y, si el acceso falla, rojo.
+    color = mix(color, uRojo, uAlerta);
+    float alfa = (0.04 + 0.5 * f + 0.9 * banda + 0.12 * estela) * uOpacidad * (1.0 + uEnergia);
     gl_FragColor = vec4(color, alfa);
   }
 `
@@ -267,6 +288,12 @@ interface Capas {
   aristas: LineBasicMaterial
   originales: { material: Material; transparente: boolean; opacidad: number }[]
   mallas: Mesh[]
+  /** Materiales emisivos del modelo: faros, luces traseras y direccionales. */
+  luces: { material: MeshStandardMaterial; tipo: 'faro' | 'trasera' | 'direccional'; color: Color; intensidad: number }[]
+}
+
+const TIPO_LUZ: Record<string, Capas['luces'][number]['tipo']> = {
+  Headlight: 'faro', Brakelight: 'trasera', Signallight: 'direccional',
 }
 
 /**
@@ -281,6 +308,7 @@ function crearCapas(escena: Object3D): Capas {
     uniforms: {
       uOpacidad: { value: 0 }, uBarrido: { value: -99 }, uAlGrupo: { value: new Matrix4() },
       uCian: { value: new Color(CIAN) }, uAzul: { value: new Color(AZUL_HOLO) },
+      uEnergia: { value: 0 }, uAlerta: { value: 0 }, uRojo: { value: new Color(ROJO_ALERTA) },
     },
     transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide,
   })
@@ -305,6 +333,7 @@ function crearCapas(escena: Object3D): Capas {
   aristas.visible = false
 
   const originales: Capas['originales'] = []
+  const luces: Capas['luces'] = []
   const mallas: Mesh[] = []
   const vistos = new Set<Material>()
   escena.traverse((o) => {
@@ -318,6 +347,11 @@ function crearCapas(escena: Object3D): Capas {
       if (vistos.has(m)) continue
       vistos.add(m)
       originales.push({ material: m, transparente: m.transparent, opacidad: m.opacity })
+      const tipo = TIPO_LUZ[m.name]
+      const estandar = m as MeshStandardMaterial
+      if (tipo && estandar.emissive) {
+        luces.push({ material: estandar, tipo, color: estandar.emissive.clone(), intensidad: estandar.emissiveIntensity })
+      }
     }
   })
   for (const malla of mallas) {
@@ -326,7 +360,7 @@ function crearCapas(escena: Object3D): Capas {
     const k = new Mesh(malla.geometry, contorno)
     malla.add(h, r, k)
   }
-  return { holo, contorno, relleno, aristas, originales, mallas }
+  return { holo, contorno, relleno, aristas, originales, mallas, luces }
 }
 
 /**
@@ -364,13 +398,14 @@ interface PropsAuto {
   zonaActiva: IdZona | null
   reserva: Reserva
   arrastrando: boolean
+  acceso?: SenalAcceso
   alElegirZona?: (zona: IdZona) => void
   alProyectar?: (punto: PuntoEnPantalla) => void
   alCargar?: () => void
 }
 
 function Concepto({
-  animado, interactivo, mezcla, zonaActiva, reserva, arrastrando, alElegirZona, alProyectar, alCargar,
+  animado, interactivo, mezcla, zonaActiva, reserva, arrastrando, acceso, alElegirZona, alProyectar, alCargar,
 }: PropsAuto) {
   const gltf = useGLTF(MODELO, DRACO)
   const grupo = useRef<Group>(null)
@@ -388,6 +423,27 @@ function Concepto({
   /** Camara de orbita guardada al entrar al plano, para volver a ella al salir. */
   const guardada = useRef<{ posicion: Vector3; objetivo: Vector3 } | null>(null)
   const desplazamiento = useRef({ x: 0, y: 0, plano: 0 })
+  /** Estado animado de las luces y de la reaccion al formulario. */
+  const luz = useRef({
+    posicion: 0, faros: 0, traseras: 0, destello: 0, vibra: 0, farosAntes: false,
+    error: -10, rev: -10, salida: null as null | { t0: number; base: Vector3; objetivo: Vector3 },
+  })
+  const pozoDelantero = useRef<Mesh>(null)
+  const pozoTrasero = useRef<Mesh>(null)
+  const estadoAcceso = acceso?.estado ?? 'reposo'
+  const pulsoClave = acceso?.pulso ?? 0
+
+  useEffect(() => {
+    const l = luz.current
+    const ahora = performance.now() / 1000
+    if (estadoAcceso === 'error') l.error = ahora
+    if (estadoAcceso === 'entrando') l.rev = ahora
+    if (estadoAcceso !== 'exito') l.salida = null
+  }, [estadoAcceso])
+  // Cada tecla de la clave, un destello corto de los faros.
+  useEffect(() => {
+    if (pulsoClave > 0) luz.current.destello = Math.max(luz.current.destello, 0.35)
+  }, [pulsoClave])
 
   // Clon propio: el acceso y el portal no deben compartir transformaciones.
   const escena = useMemo(() => gltf.scene.clone(true), [gltf])
@@ -485,6 +541,7 @@ function Concepto({
     enMundo: new Vector3(), normal: new Vector3(), haciaCamara: new Vector3(), camLocal: new Vector3(),
     rayo: new Ray(), corte: new Vector3(), fondo: new Color(FONDO), azul: new Color(AZUL_PLANO),
     cian: new Color(CIAN), blanco: new Color(TRAZO_PLANO), lateral: new Vector3(), objetivo: new Vector3(),
+    rojo: new Color(ROJO_ALERTA), cianClaro: new Color(CIAN_CLARO), trazo: new Color(), faro: new Color('#dce9ff'),
   }), [])
 
   useFrame((estado, delta) => {
@@ -502,7 +559,30 @@ function Concepto({
     m.fondo.copy(tmp.fondo).lerp(tmp.azul, m.plano)
     ;(scene.background as Color | null)?.copy(m.fondo)
 
-    // 2. Materiales del modo.
+    // 2. Luces y reaccion al formulario de acceso:
+    // - Usuario enfocado: luces de posicion (faros bajos y traseras tenues).
+    // - Clave escrita: faros encendidos con un destello (el bloom lo realza).
+    // - Entrar: "rev" (vibracion y luces traseras), luego ralenti.
+    // - Error: todas las luces parpadean en rojo.
+    const l = luz.current
+    const ahora = performance.now() / 1000
+    const farosOn = estadoAcceso === 'clave' || estadoAcceso === 'entrando' || estadoAcceso === 'exito'
+    if (farosOn && !l.farosAntes) l.destello = 1
+    l.farosAntes = farosOn
+    const hacia = (v: number, meta: number, vel: number) => v + (meta - v) * Math.min(1, delta * vel)
+    l.posicion = hacia(l.posicion, estadoAcceso === 'reposo' ? 0 : 1, 6)
+    l.faros = hacia(l.faros, farosOn ? 1 : 0, 8)
+    const tRev = ahora - l.rev
+    const enRev = estadoAcceso === 'entrando' && tRev < 0.9
+    l.traseras = hacia(l.traseras, estadoAcceso === 'entrando' ? (enRev ? 1 : 0.6) : l.posicion * 0.25, 10)
+    l.vibra = !animado ? 0 : estadoAcceso === 'entrando' ? (enRev ? Math.sin((Math.PI * tRev) / 0.9) : 0.12) : hacia(l.vibra, 0, 8)
+    l.destello = animado ? l.destello * Math.exp(-delta * 3.5) : 0
+    const tError = ahora - l.error
+    // Tres parpadeos en 1,5 s; sin animaciones, rojo fijo ese mismo tiempo.
+    const rojo = tError >= 0 && tError < 1.5 ? (!animado || Math.sin(tError * Math.PI * 4) > 0 ? 1 : 0) : 0
+    const energia = Math.min(1.5, 0.25 * l.posicion + 0.5 * l.faros + 1.1 * l.destello + 0.4 * l.vibra)
+
+    // 3. Materiales del modo.
     const c = capas.current
     if (c) {
       for (const o of c.originales) {
@@ -519,8 +599,24 @@ function Concepto({
       c.contorno.visible = m.plano > 0.001
       c.contorno.uniforms.uOpacidad.value = m.plano
       c.aristas.visible = m.escaner + m.plano > 0.001
-      c.aristas.opacity = m.escaner * 0.13 + m.plano * 0.9
-      c.aristas.color.copy(tmp.cian).lerp(tmp.blanco, m.plano / Math.max(0.001, m.escaner + m.plano))
+      // Equivalente de las luces en el escaner (pulso cian, rojo si falla) y en
+      // el plano (las lineas se iluminan, rojas si falla).
+      c.holo.uniforms.uEnergia.value = energia * 0.7
+      c.holo.uniforms.uAlerta.value = rojo * 0.85
+      tmp.trazo.copy(tmp.blanco).lerp(tmp.cianClaro, Math.min(1, energia))
+      if (rojo) tmp.trazo.copy(tmp.rojo)
+      c.contorno.uniforms.uColor.value.copy(tmp.trazo)
+      c.aristas.opacity = m.escaner * (0.13 + 0.25 * energia + 0.3 * rojo) + m.plano * Math.min(1, 0.7 + 0.3 * energia + rojo)
+      c.aristas.color.copy(rojo ? tmp.rojo : tmp.cian).lerp(tmp.trazo, m.plano / Math.max(0.001, m.escaner + m.plano))
+
+      for (const lz of c.luces) {
+        const mat = lz.material
+        if (rojo) { mat.emissive.copy(tmp.rojo); mat.emissiveIntensity = 9; continue }
+        mat.emissive.copy(lz.color)
+        const k = lz.tipo === 'faro' ? 0.15 + l.posicion * 0.6 + l.faros * 2.2 + l.destello * 5
+          : lz.tipo === 'trasera' ? 0.3 + l.traseras * 4 : 1
+        mat.emissiveIntensity = lz.intensidad * k
+      }
 
       // Linea de escaneo: barre de adelante hacia atras y descansa un momento.
       // Sin animaciones (prefers-reduced-motion) no se muestra.
@@ -538,10 +634,22 @@ function Concepto({
       }
     }
 
+    // Luz de los faros (y de las traseras) sobre el piso.
+    const fuera = 1 - m.plano
+    if (pozoDelantero.current) {
+      const mat = pozoDelantero.current.material as MeshBasicMaterial
+      mat.opacity = (0.3 * l.faros + 0.3 * l.destello + 0.5 * rojo) * fuera
+      mat.color.copy(rojo ? tmp.rojo : tmp.faro).lerp(rojo ? tmp.rojo : tmp.cian, m.escaner)
+    }
+    if (pozoTrasero.current) {
+      const mat = pozoTrasero.current.material as MeshBasicMaterial
+      mat.opacity = (0.4 * l.traseras + 0.5 * rojo) * fuera
+    }
+
     // En el plano las ruedas no giran: es un dibujo.
     if (animado && m.plano < 0.5) for (const pieza of ruedas.current) pieza.rotation.x -= delta * 2.4
 
-    // 3. Parallax: el auto se inclina unos grados hacia el cursor. Se aplica al
+    // 4. Parallax: el auto se inclina unos grados hacia el cursor. Se aplica al
     // auto y no a la camara para no pelear con los controles de orbita.
     if (g) {
       const libre = animado && interactivo && !zonaActiva && !arrastrando && m.plano === 0
@@ -550,15 +658,26 @@ function Concepto({
       const t = Math.min(1, delta * 3)
       g.rotation.x += (rx - g.rotation.x) * t
       g.rotation.y += (ry - g.rotation.y) * t
+      // "Rev": el auto vibra unos milimetros.
+      const a = l.vibra * 0.012
+      g.position.set(Math.sin(ahora * 83) * a * 0.6, Math.abs(Math.sin(ahora * 61)) * a, 0)
     }
 
-    // 4. Camara.
+    // 5. Camara. Si el acceso fue correcto, un dolly rapido hacia el auto
+    // antes de cambiar de pagina.
+    const saliendo = estadoAcceso === 'exito' && animado
+    let acercar = 1
+    if (saliendo) {
+      if (!l.salida) l.salida = { t0: ahora, base: camera.position.clone(), objetivo: (ctrl ? ctrl.target : OBJETIVO_GENERAL).clone() }
+      const k = Math.min(1, (ahora - l.salida.t0) / 0.6)
+      acercar = 1 - 0.55 * k * k
+    }
     const ancho = estado.size.width; const alto = estado.size.height
     const off = desplazamiento.current
     const tOff = animado ? 1 - Math.exp(-delta * 6) : 1
     off.x += (reserva.izquierda / 2 - off.x) * tOff
     off.y += (reserva.abajo / 2 - off.y) * tOff
-    if (ctrl) ctrl.enabled = interactivo && m.plano === 0
+    if (ctrl) ctrl.enabled = interactivo && m.plano === 0 && !saliendo
 
     if (m.plano > 0 && g && medidas) {
       // Plano: la camara pasa a la vista lateral izquierda mientras el campo
@@ -587,7 +706,7 @@ function Concepto({
       const dir = dir0.lerp(lateral, w).add(new Vector3(0, Math.sin(Math.PI * w) * arco * 0.9, 0)).normalize()
       const fov = FOV * Math.pow(FOV_PLANO / FOV, w)
       const base = dist0 + (off.plano - dist0) * w
-      const d = base * tan(FOV) / tan(fov)
+      const d = (base * tan(FOV) / tan(fov)) * acercar
       const objetivo = s.objetivo.clone().lerp(objetivoPlano, w)
       camera.position.copy(objetivo).addScaledVector(dir, d)
       camera.lookAt(objetivo)
@@ -602,8 +721,12 @@ function Concepto({
         off.plano = 0
       }
       camera.fov = FOV
-      // Vuelo de camara suave (o inmediato si el visitante pidio menos movimiento).
-      if (vuelo.current && ctrl) {
+      if (saliendo && l.salida) {
+        camera.position.copy(l.salida.objetivo).lerp(l.salida.base, acercar)
+        camera.lookAt(l.salida.objetivo)
+        camera.fov = FOV + 14 * ((1 - acercar) / 0.55)
+      } else if (vuelo.current && ctrl) {
+        // Vuelo de camara suave (o inmediato si el visitante pidio menos movimiento).
         const t = animado ? 1 - Math.exp(-delta * 3) : 1
         camera.position.lerp(vuelo.current.posicion, t)
         ctrl.target.lerp(vuelo.current.objetivo, t)
@@ -637,7 +760,7 @@ function Concepto({
       camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
     }
 
-    // 5. Puntos: se esconden cuando quedan detras del auto (se traza un rayo
+    // 6. Puntos: se esconden cuando quedan detras del auto (se traza un rayo
     // desde la camara contra la carroceria y la cabina simplificadas) o de
     // espaldas a la camara. El activo informa donde cae en pantalla.
     if (!g || !medidas) return
@@ -692,6 +815,10 @@ function Concepto({
                   // mientras se arrastra para girar el auto no debe abrirlo.
                   onPointerEnter={(e) => { if (e.pointerType === 'mouse' && e.buttons === 0) elegir(p.id, false) }}
                   onPointerLeave={() => window.clearTimeout(temporizador.current)}
+                  // El clic del raton no enfoca el boton: enfocar un elemento
+                  // puede desplazar la pagina para mostrarlo (el teclado sigue
+                  // pudiendo enfocarlo con Tab).
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => elegir(p.id, true)}
                 >
                   <span className="punto-zona-nucleo" aria-hidden />
@@ -709,12 +836,71 @@ function Concepto({
               </div>
             </Html>
           ))}
+          <LineasGuia medidas={medidas} mezcla={mezcla} />
+          <PozoLuz refMalla={pozoDelantero} z={medidas.auto.max.z + 1.0} ancho={2.6} largo={2.4} color="#dce9ff" />
+          <PozoLuz refMalla={pozoTrasero} z={medidas.auto.min.z - 0.55} ancho={2.2} largo={1.2} color={ROJO_ALERTA} />
           <LineaBarrido refMalla={barrido} medidas={medidas} />
           <Cotas medidas={medidas} mezcla={mezcla} />
           <Rejilla mezcla={mezcla} />
         </>
       )}
     </group>
+  )
+}
+
+/** Charco de luz en el piso, delante (faros) o detras (luces traseras) del auto. */
+function PozoLuz({ refMalla, z, ancho, largo, color }: {
+  refMalla: MutableRefObject<Mesh | null>; z: number; ancho: number; largo: number; color: string
+}) {
+  const textura = useMemo(() => texturaRadial(128, (t) => Math.exp(-4 * t * t) * (1 - t)), [])
+  return (
+    <mesh ref={refMalla} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.035, z]} renderOrder={3}>
+      <planeGeometry args={[ancho, largo]} />
+      <meshBasicMaterial map={textura} color={color} transparent opacity={0} blending={AdditiveBlending}
+                         depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
+/**
+ * Lineas que unen un indicador del escaner con la pieza a la que se refiere.
+ * Line de drei (Line2) tiene grosor en pixeles: una linea comun de 1 px se
+ * perdia sobre el holograma.
+ */
+function LineasGuia({ medidas, mezcla }: { medidas: Medidas; mezcla: MutableRefObject<Mezcla> }) {
+  const lineas = useRef<(Line2 | null)[]>([])
+  const extremos = useRef<(MeshBasicMaterial | null)[]>([])
+  const conAncla = medidas.indicadores.filter((i): i is typeof i & { ancla: Vector3 } => Boolean(i.ancla))
+  useFrame(() => {
+    const e = mezcla.current.escaner
+    for (const m of extremos.current) {
+      if (!m) continue
+      m.visible = e > 0.01
+      m.opacity = e
+    }
+    for (const l of lineas.current) {
+      if (!l) continue
+      l.visible = e > 0.01
+      l.material.opacity = e * 0.95
+    }
+  })
+  return (
+    <>
+      {conAncla.map((i, n) => (
+        <group key={i.id}>
+          <Line
+            ref={(el) => { lineas.current[n] = el as Line2 | null }}
+            points={[i.posicion, i.ancla]} color={CIAN} lineWidth={1.6} dashed dashSize={0.06} gapSize={0.035}
+            transparent opacity={0} depthTest={false} toneMapped={false} renderOrder={21}
+          />
+          <mesh position={i.ancla} renderOrder={22}>
+            <sphereGeometry args={[0.035, 12, 8]} />
+            <meshBasicMaterial ref={(el) => { extremos.current[n] = el }} color="#ffffff" transparent
+                               opacity={0} depthTest={false} toneMapped={false} fog={false} />
+          </mesh>
+        </group>
+      ))}
+    </>
   )
 }
 
@@ -996,6 +1182,8 @@ export interface PropsCoche3D {
   modo?: Modo
   zonaActiva?: IdZona | null
   reserva?: Reserva
+  /** Estado del formulario de acceso, para que el auto reaccione. */
+  acceso?: SenalAcceso
   alElegirZona?: (zona: IdZona) => void
   alProyectar?: (punto: PuntoEnPantalla) => void
   alCargar?: () => void
@@ -1005,7 +1193,7 @@ const SIN_RESERVA: Reserva = { izquierda: 0, abajo: 0 }
 
 export default function Coche3D({
   animado, activo, interactivo = false, zoomHabilitado = false, modo = 'real', zonaActiva = null,
-  reserva = SIN_RESERVA, alElegirZona, alProyectar, alCargar,
+  reserva = SIN_RESERVA, acceso, alElegirZona, alProyectar, alCargar,
 }: PropsCoche3D) {
   const [calidadAlta, setCalidadAlta] = useState(true)
   const [arrastrando, setArrastrando] = useState(false)
@@ -1058,7 +1246,7 @@ export default function Coche3D({
         <Estudio />
         <Concepto
           animado={animado} interactivo={interactivo} mezcla={mezcla} zonaActiva={zonaActiva}
-          reserva={reserva} arrastrando={arrastrando}
+          reserva={reserva} arrastrando={arrastrando} acceso={acceso}
           alElegirZona={alElegirZona} alProyectar={alProyectar} alCargar={alCargar}
         />
         <Piso calidadAlta={calidadAlta} mezcla={mezcla} />

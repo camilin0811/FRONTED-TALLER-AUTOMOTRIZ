@@ -1,6 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ZONAS, servicio, type IdZona } from '../servicios'
-import type { Modo, PuntoEnPantalla, Reserva } from './Coche3D'
+import type { Modo, PuntoEnPantalla, Reserva, SenalAcceso } from './Coche3D'
+
+export type { EstadoAcceso, SenalAcceso } from './Coche3D'
 
 const MODOS: { id: Modo; nombre: string }[] = [
   { id: 'real', nombre: 'Real' },
@@ -38,7 +40,12 @@ function hayWebGL(): boolean {
   }
 }
 
-export function CocheEscaparate({ className, interactivo = false }: { className?: string; interactivo?: boolean }) {
+export function CocheEscaparate({ className, interactivo = false, acceso }: {
+  className?: string
+  interactivo?: boolean
+  /** Estado del formulario de acceso: el auto enciende luces, hace "rev", etc. */
+  acceso?: SenalAcceso
+}) {
   // Se evalua una sola vez por montaje: ni el soporte de WebGL ni la
   // preferencia de movimiento cambian mientras la pagina esta abierta.
   const soportado = useMemo(() => hayWebGL(), [])
@@ -140,7 +147,8 @@ export function CocheEscaparate({ className, interactivo = false }: { className?
           <Coche3D
             animado={animado} activo={enPantalla && pestanaVisible} alCargar={alCargar}
             interactivo={interactivo} zoomHabilitado={zoom}
-            modo={modo} zonaActiva={zona} reserva={reserva} alElegirZona={setZona} alProyectar={alProyectar}
+            modo={modo} zonaActiva={zona} reserva={reserva} acceso={acceso}
+            alElegirZona={setZona} alProyectar={alProyectar}
           />
         </Suspense>
       )}

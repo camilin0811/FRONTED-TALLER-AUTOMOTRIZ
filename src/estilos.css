@@ -547,7 +547,11 @@ input:focus, select:focus, textarea:focus {
 
 /* Contenedor de la escena 3D: el fondo de espera se superpone al lienzo y
    se desvanece cuando el auto termina de cargar. */
-.escaparate { position: relative; }
+/* overflow: clip recorta las etiquetas que la camara deja fuera de la vitrina
+   (sin esto agrandaban el area desplazable de la pagina), y overflow-anchor
+   evita que el navegador tome como ancla de scroll un punto que se mueve con
+   la camara: cualquiera de los dos podia hacer saltar la pagina. */
+.escaparate { position: relative; overflow: clip; overflow-anchor: none; }
 /* La escena se funde con la pagina: los bordes del lienzo se desvanecen
    (arriba y abajo con un degradado vertical, a los lados con uno
    horizontal), asi nunca se ve el rectangulo. */
@@ -729,8 +733,9 @@ input:focus, select:focus, textarea:focus {
 .punto-zona-nucleo, .punto-zona::before, .punto-zona::after { transition: background .4s ease, border-color .4s ease; }
 .modo-escaner .punto-zona-nucleo { background: #38e1ff; box-shadow: 0 0 10px rgba(56, 225, 255, .8); }
 .modo-escaner .punto-zona::before, .modo-escaner .punto-zona::after { border-color: #38e1ff; }
-.modo-plano .punto-zona-nucleo { background: #0d2a4a; border-color: #fff; box-shadow: none; }
-.modo-plano .punto-zona::before, .modo-plano .punto-zona::after { border-color: #dbe8ff; }
+/* Plano: punto blanco con borde y halo cian, y el pulso bien visible. */
+.modo-plano .punto-zona-nucleo { background: #fff; border-color: #38e1ff; box-shadow: 0 0 10px rgba(56, 225, 255, .9); }
+.modo-plano .punto-zona::before, .modo-plano .punto-zona::after { border-color: #7fe9ff; border-width: 2px; }
 .modo-escaner .punto-zona.activo .punto-zona-nucleo, .modo-plano .punto-zona.activo .punto-zona-nucleo { background: #fff; border-color: var(--rojo-vivo); }
 
 /* Va despues de las reglas de arriba para poder corregirlas. */
@@ -742,6 +747,22 @@ input:focus, select:focus, textarea:focus {
   .escaparate:not(.modo-real) .escaparate-ayuda { display: none; }
   .indicador-diag { padding: 3px 6px; font-size: 9px; }
   .indicador-valor { font-size: 11px; }
+}
+
+/* Boton Entrar con tacometro mientras se valida el acceso. */
+.boton-entrar { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.tacometro { width: 30px; height: 19px; flex: none; }
+.tacometro .arco { fill: none; stroke: rgba(255, 255, 255, .45); stroke-width: 2; stroke-linecap: round; }
+.tacometro .zona-roja { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; }
+.tacometro .aguja {
+  stroke: #fff; stroke-width: 2; stroke-linecap: round;
+  transform-origin: 15px 16px; animation: revoluciones 1.1s ease-in-out infinite alternate;
+}
+.tacometro .eje { fill: #fff; }
+@keyframes revoluciones {
+  0% { transform: rotate(-75deg); }
+  70% { transform: rotate(55deg); }
+  100% { transform: rotate(68deg); }
 }
 
 /* Credito del modelo 3D (CC BY 4.0) en el pie. */
@@ -1009,6 +1030,7 @@ a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(2
   .punto-zona::before, .punto-zona::after { animation: none; opacity: .5; transform: scale(1.2); }
   .modo-escaner .indicador-diag, .escaner-led { animation: none; }
   .indicador-diag, .cota-etiqueta { transition: none; }
+  .tacometro .aguja { animation: none; transform: rotate(20deg); }
   /* La rueda deja de girar pero el anillo queda visible: el texto ya informa. */
   .girando { animation: none; }
 }
