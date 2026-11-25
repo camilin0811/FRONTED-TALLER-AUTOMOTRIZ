@@ -180,6 +180,15 @@ export function Login() {
         <p className="tenue">
           Sistema de gestión del taller · <a href="/portal">Consulta de órdenes</a>
         </p>
+        {/* Atribucion exigida por la licencia CC BY 4.0 del modelo 3D.
+            Detalle completo en /models/CREDITS.md. */}
+        <p className="creditos tenue">
+          Modelo 3D: «<a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept"
+                         target="_blank" rel="noopener noreferrer">Car Concept</a>» de Eric Chadwick
+          (© 2024 Darmstadt Graphics Group GmbH), basado en un modelo de dominio público de Unity Fan.
+          Licencia <a href="https://creativecommons.org/licenses/by/4.0/deed.es" target="_blank"
+                      rel="noopener noreferrer">CC BY 4.0</a>. Modificado: sin logos ni variantes de pintura.
+        </p>
       </footer>
     </div>
   )

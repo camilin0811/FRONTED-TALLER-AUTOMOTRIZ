@@ -545,6 +545,19 @@ input:focus, select:focus, textarea:focus {
 }
 .pie p { margin: 0; font-size: 12px; }
 
+/* Contenedor de la escena 3D: el fondo de espera se superpone al lienzo y
+   se desvanece cuando el auto termina de cargar. */
+.escaparate { position: relative; }
+.escaparate-espera {
+  position: absolute; inset: 0; pointer-events: none;
+  transition: opacity .6s ease;
+}
+.escaparate-espera.oculto { opacity: 0; }
+
+/* Credito del modelo 3D (CC BY 4.0) en el pie. */
+.creditos { font-size: 11px; line-height: 1.5; max-width: 760px; }
+.creditos a { color: var(--tinta-suave); }
+
 /* Fondo estatico cuando no hay WebGL, o mientras carga la escena: una pista
    con lineas de velocidad. */
 .coche-fallback {
@@ -802,6 +815,7 @@ a.boton-enlace.secundario:hover { border-color: var(--metal); background: rgba(2
   .encabezado, .indicadores, .panel, .aviso, .maestro-detalle, .linea-tiempo,
   .heroe-info, .tarjeta-acceso, .tarjeta-servicio { animation: none; }
   .hueso { animation: none; }
+  .escaparate-espera { transition: none; }
   /* La rueda deja de girar pero el anillo queda visible: el texto ya informa. */
   .girando { animation: none; }
 }
