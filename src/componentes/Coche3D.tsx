@@ -3,8 +3,8 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import {
   AdaptiveDpr, ContactShadows, Environment, Lightformer, MeshReflectorMaterial, PerformanceMonitor, useGLTF,
 } from '@react-three/drei'
-import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
-import { Box3, Vector3 } from 'three'
+import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { AdditiveBlending, Box3, CanvasTexture, SRGBColorSpace, Vector3 } from 'three'
 import type { Group, Object3D } from 'three'
 
 /**
@@ -26,10 +26,22 @@ const MODELO = '/models/concepto.glb'
 const DRACO = '/draco/'
 
 /** Distancia de la camara al centro: arranca lejos y se acerca al aparecer. */
-const DISTANCIA_FINAL = 5.0
-const DISTANCIA_INICIAL = 7.5
+// Con margen para cualquier angulo del giro: de frente el auto es angosto,
+// pero de lado ocupa todo su largo y no debe tocar los bordes.
+const DISTANCIA_FINAL = 6.3
+const DISTANCIA_INICIAL = 8.8
 /** Proporcion ancho/alto para la que esta calibrada la distancia (el hero de escritorio). */
 const ASPECTO_DE_REFERENCIA = 2
+
+/**
+ * Color medio del fondo de la pagina: --asfalto (#0d0f13) mas la trama de
+ * fibra de carbono que lo aclara un poco. Medido en pantalla: (17, 18, 22).
+ * El lienzo, la niebla y el piso lo usan para fundirse sin bordes.
+ */
+const FONDO = '#111216'
+const FONDO_RGB = '17, 18, 22'
+/** Radio del piso reflectante; mas alla solo hay un anillo liso del color de fondo. */
+const RADIO_PISO = 7
 
 function Concepto({ animado, alCargar }: { animado: boolean; alCargar?: () => void }) {
   const gltf = useGLTF(MODELO, DRACO)
@@ -111,21 +123,106 @@ function Estudio() {
   )
 }
 
+/**
+ * Piso de showroom pulido: un plano mucho mayor que el encuadre, del color
+ * de la pagina. La niebla lo funde con el fondo a lo lejos, asi que no tiene
+ * borde visible. El reflejo es nitido cerca del auto y se difumina.
+ */
 function Piso({ calidadAlta }: { calidadAlta: boolean }) {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]}>
-      <circleGeometry args={[9, 64]} />
+      {/* Un circulo y no un plano infinito: a lo lejos dos superficies casi
+          coplanares se pelean en el buffer de profundidad (z-fighting) y el
+          piso asomaba como una franja gris en el horizonte. */}
+      <circleGeometry args={[RADIO_PISO, 96]} />
       {calidadAlta ? (
         <MeshReflectorMaterial
-          blur={[300, 90]} resolution={512} mixBlur={0.9} mixStrength={6} roughness={0.7}
-          depthScale={1.1} minDepthThreshold={0.4} maxDepthThreshold={1.3}
-          color="#0b0d11" metalness={0.5} mirror={0.5}
+          blur={[220, 60]} resolution={1024} mixBlur={0.55} mixStrength={4} mixContrast={1.15}
+          roughness={1} depthScale={0.9} minDepthThreshold={0.35} maxDepthThreshold={1.4}
+          // El piso no se sombrea con la luz del estudio (si lo hiciera, el
+          // panel lateral lo aclaraba en una mancha gris): su base es un
+          // color constante, el del fondo, y solo se le suma el reflejo.
+          color="#000000" emissive={FONDO} emissiveIntensity={1} metalness={0} envMapIntensity={0}
+          mirror={0.75}
         />
       ) : (
         // En equipos lentos el reflejo (otra pasada completa de la escena)
         // se cambia por un piso mate.
-        <meshStandardMaterial color="#0b0d11" roughness={0.85} metalness={0.2} />
+        <meshStandardMaterial color={FONDO} roughness={0.85} metalness={0} envMapIntensity={0.05} />
       )}
+    </mesh>
+  )
+}
+
+/** Degradado radial rojo pintado una vez en un canvas: no se descarga nada. */
+function texturaHalo(): CanvasTexture {
+  const lienzo = document.createElement('canvas')
+  lienzo.width = lienzo.height = 256
+  const ctx = lienzo.getContext('2d')
+  if (ctx) {
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128)
+    g.addColorStop(0, 'rgba(255, 45, 35, 0.9)')
+    g.addColorStop(0.35, 'rgba(225, 6, 0, 0.35)')
+    g.addColorStop(1, 'rgba(225, 6, 0, 0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 256, 256)
+  }
+  const textura = new CanvasTexture(lienzo)
+  textura.colorSpace = SRGBColorSpace
+  return textura
+}
+
+/**
+ * Fundido del piso: un degradado radial transparente bajo el auto y del
+ * color exacto de la pagina hacia afuera. El piso reflectante amplifica lo
+ * que refleja y queda un poco mas claro que el fondo; sin este fundido se
+ * veia como una banda gris con linea de horizonte.
+ */
+function texturaFundido(): CanvasTexture {
+  const lienzo = document.createElement('canvas')
+  lienzo.width = lienzo.height = 512
+  const ctx = lienzo.getContext('2d')
+  if (ctx) {
+    const g = ctx.createRadialGradient(256, 256, 0, 256, 256, 256)
+    g.addColorStop(0, `rgba(${FONDO_RGB}, 0)`)
+    // Opaco antes de llegar al borde del piso (radio 7 de 12): el borde del
+    // circulo queda siempre tapado.
+    g.addColorStop(0.2, `rgba(${FONDO_RGB}, 0)`)
+    g.addColorStop(0.5, `rgba(${FONDO_RGB}, 1)`)
+    g.addColorStop(1, `rgba(${FONDO_RGB}, 1)`)
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 512, 512)
+  }
+  const textura = new CanvasTexture(lienzo)
+  textura.colorSpace = SRGBColorSpace
+  return textura
+}
+
+function FundidoPiso() {
+  const textura = useMemo(texturaFundido, [])
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} renderOrder={2}>
+        <planeGeometry args={[24, 24]} />
+        <meshBasicMaterial map={textura} transparent depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
+      {/* Mas alla del degradado, el mismo color liso hasta perderse de vista. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} renderOrder={2}>
+        <ringGeometry args={[RADIO_PISO - 0.05, 70, 96]} />
+        <meshBasicMaterial color={FONDO} depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
+    </>
+  )
+}
+
+/** Halo rojo tenue en el piso, debajo del auto: suma luz, no la tapa. */
+function Halo() {
+  const textura = useMemo(texturaHalo, [])
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, 0]} renderOrder={3}>
+      <planeGeometry args={[6, 6]} />
+      <meshBasicMaterial map={textura} transparent opacity={0.2} blending={AdditiveBlending}
+                         depthWrite={false} toneMapped={false} />
     </mesh>
   )
 }
@@ -142,8 +239,13 @@ export default function Coche3D({ animado, activo, alCargar }: {
     <Canvas
       frameloop={activo ? 'always' : 'never'}
       dpr={[1, 1.75]}
-      camera={{ position: [5, 1.55, 5.4], fov: 30 }}
+      // near/far ajustados a la escena: mas precision de profundidad que el
+      // rango por defecto (0,1 a 1000).
+      camera={{ position: [6.3, 1.55, 6.8], fov: 30, near: 0.5, far: 80 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
+      // Mismo color que la pagina: junto con la mascara CSS del contenedor,
+      // el lienzo no se ve como una caja.
+      onCreated={({ gl }) => gl.setClearColor(FONDO, 1)}
       /* Si el auto no puede dibujarse, mejor nada que un lienzo roto. */
       fallback={<div className="coche-fallback" aria-hidden />}
       aria-hidden
@@ -153,15 +255,20 @@ export default function Coche3D({ animado, activo, alCargar }: {
       <PerformanceMonitor onDecline={() => setCalidadAlta(false)} onIncline={() => setCalidadAlta(true)} />
       <AdaptiveDpr pixelated={false} />
 
+      <color attach="background" args={[FONDO]} />
+      {/* La niebla funde el piso con el fondo a lo lejos: sin horizonte. */}
+      <fog attach="fog" args={[FONDO, 7, 16]} />
+
       <Suspense fallback={null}>
         <Estudio />
         <Concepto animado={animado} alCargar={alCargar} />
         <Piso calidadAlta={calidadAlta} />
-        <ContactShadows position={[0, 0.001, 0]} opacity={0.75} scale={11} blur={2.4} far={2.5} resolution={512} />
+        <FundidoPiso />
+        <Halo />
+        <ContactShadows position={[0, 0.001, 0]} opacity={0.55} scale={10} blur={2.6} far={2.2} resolution={512} />
 
         <EffectComposer>
           <Bloom luminanceThreshold={1} mipmapBlur intensity={0.6} />
-          <Vignette offset={0.25} darkness={0.7} />
         </EffectComposer>
       </Suspense>
     </Canvas>
