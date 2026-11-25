@@ -3,8 +3,9 @@
  * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
  */
 import { coincide } from '../texto'
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { useAccionConfirmada } from '../componentes/interaccion'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useAccionConfirmada, useNotificar } from '../componentes/interaccion'
+import { FormularioRepuesto } from '../componentes/FormularioRepuesto'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { ETIQUETA_COMPRA, ETIQUETA_MOVIMIENTO } from '../estados'
 import { inventario } from '../api/servicios'
@@ -25,6 +26,22 @@ export function Inventario() {
   const puedeRecibir = tieneRol('ADMINISTRADOR', 'RECEPCIONISTA')
   const [busqueda, setBusqueda] = useState('')
   const [soloBajoMinimo, setSoloBajoMinimo] = useState(false)
+  const [creando, setCreando] = useState(false)
+  /** Codigo del repuesto recien creado: su fila se resalta un momento. */
+  const [nuevo, setNuevo] = useState<string | null>(null)
+  const notificar = useNotificar()
+  const cerrarFormulario = useCallback(() => setCreando(false), [])
+
+  /** El repuesto entra a la tabla sin recargar; se limpian los filtros para que se vea. */
+  function alCrear(repuesto: Repuesto) {
+    setRepuestos((actuales) => [...actuales, repuesto].sort((a, b) => a.codigo.localeCompare(b.codigo)))
+    setBusqueda('')
+    setSoloBajoMinimo(false)
+    setCreando(false)
+    setNuevo(repuesto.codigo)
+    notificar('exito', 'Repuesto creado')
+    window.setTimeout(() => setNuevo((c) => (c === repuesto.codigo ? null : c)), 4000)
+  }
 
   const visibles = useMemo(() => {
     return repuestos
@@ -55,7 +72,16 @@ export function Inventario() {
 
   return (
     <>
-      <div className="encabezado"><h2>Inventario</h2></div>
+      <div className="encabezado">
+        <h2>Inventario</h2>
+        {/* Solo el administrador puede crear repuestos (POST /api/v1/repuestos). */}
+        {puedeGestionar && (
+          <button type="button" className="primario" onClick={() => setCreando(true)}>+ Nuevo repuesto</button>
+        )}
+      </div>
+      {puedeGestionar && (
+        <FormularioRepuesto abierto={creando} alCerrar={cerrarFormulario} alCrear={alCrear} />
+      )}
       <AvisoError error={error} />
 
       <div className="fila filtros-inventario">
@@ -84,7 +110,7 @@ export function Inventario() {
         <tbody>
           {visibles.map((r) => (
             <Fragment key={r.codigo}>
-              <tr className="clicable" onClick={() => alternar(r.codigo)}>
+              <tr className={`clicable ${nuevo === r.codigo ? 'fila-nueva' : ''}`} onClick={() => alternar(r.codigo)}>
                 <td className="codigos">{r.codigo}</td>
                 <td>{r.nombre}</td>
                 <td>

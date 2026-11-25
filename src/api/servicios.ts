@@ -64,6 +64,9 @@ export const ordenes = {
 export const inventario = {
   listar: (bajoMinimo = false) => api.get<Repuesto[]>(`/repuestos?bajoMinimo=${bajoMinimo}`),
   movimientos: (codigo: string) => api.get<Movimiento[]>(`/repuestos/${codigo}/movimientos`),
+  /** Solo administrador. Un codigo repetido responde 409 RECURSO_DUPLICADO. */
+  crearRepuesto: (datos: { codigo: string; nombre: string; precio: number; stock: number; stockMinimo: number }) =>
+    api.post<Repuesto>('/repuestos', datos),
   ordenesCompra: () => api.get<OrdenCompra[]>('/ordenes-compra'),
   /** Solo administrador, mientras la orden es borrador. */
   ajustarCantidad: (id: string, codigo: string, cantidad: number) =>

@@ -765,6 +765,16 @@ input:focus, select:focus, textarea:focus {
   100% { transform: rotate(68deg); }
 }
 
+/* Formulario de nuevo repuesto (modal). */
+.rejilla-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.formulario-repuesto .aviso { margin-bottom: 14px; }
+.ayuda-formulario { margin: 2px 0 0; font-size: 12.5px; }
+/* La fila recien creada se resalta y se desvanece sola. */
+@keyframes resaltar-fila { from { background: rgba(225, 6, 0, .28); } to { background: transparent; } }
+tr.fila-nueva td { animation: resaltar-fila 4s ease-out both; }
+@media (max-width: 480px) { .rejilla-dos { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { tr.fila-nueva td { animation: none; background: rgba(225, 6, 0, .18); } }
+
 /* Credito del modelo 3D (CC BY 4.0) en el pie. */
 .creditos { font-size: 11px; line-height: 1.5; max-width: 760px; }
 .creditos a { color: var(--tinta-suave); }
