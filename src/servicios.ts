@@ -1,3 +1,8 @@
+/*
+ * Para qué sirve: Textos de los servicios del taller y de las zonas del auto 3D, compartidos por la
+ * página de acceso y la escena.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 /**
  * Servicios del taller: una sola fuente para la seccion "Servicios" de la
  * pagina de acceso y para las tarjetas de los puntos del auto 3D.

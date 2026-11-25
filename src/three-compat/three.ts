@@ -1,3 +1,9 @@
+/*
+ * Para qué sirve: Reexporta three.js con un Clock propio construido sobre THREE.Timer, para evitar
+ * el aviso de obsoleto.
+ * PATRÓN Adapter: Clock ofrece la interfaz que espera React Three Fiber, implementada sobre
+ *     THREE.Timer.
+ */
 /**
  * three.js con `Clock` implementado sobre `THREE.Timer`.
  *
@@ -15,6 +21,7 @@ import { Timer } from 'three-original'
 export * from 'three-original'
 
 /** Misma interfaz publica que THREE.Clock, medida con THREE.Timer. */
+// PATRÓN Adapter: misma interfaz que THREE.Clock, implementada sobre THREE.Timer.
 export class Clock {
   autoStart: boolean
   startTime = 0

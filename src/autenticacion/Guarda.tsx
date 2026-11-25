@@ -1,3 +1,9 @@
+/*
+ * Para qué sirve: Protege una ruta: sin sesión manda al login y sin el rol adecuado muestra un
+ * aviso.
+ * PATRÓN Ruta protegida (Guard): componente envoltorio que decide si muestra la página. Es
+ *     comodidad de interfaz: la seguridad real la aplica el backend.
+ */
 import { ETIQUETA_ROL } from '../estados'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { inicioDe } from './inicio'
@@ -11,6 +17,7 @@ import { Aviso } from '../componentes/Aviso'
  * Es comodidad para el usuario, no seguridad: quien decide de verdad es el
  * backend. Esconder un boton no impide llamar al endpoint.
  */
+// PATRÓN Ruta protegida (Guard): envuelve la página y decide si se muestra.
 export function Guarda({ roles, children }: { roles?: Rol[]; children: React.ReactNode }) {
   const { sesion } = useAutenticacion()
   const ubicacion = useLocation()

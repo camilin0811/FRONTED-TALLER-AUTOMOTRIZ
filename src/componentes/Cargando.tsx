@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Esqueleto de carga y mensaje para listas vacías.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 /**
  * Esqueleto de carga: en lugar de un letrero, la pagina insinua su propia
  * forma (titulo, tarjetas, filas) mientras llegan los datos.

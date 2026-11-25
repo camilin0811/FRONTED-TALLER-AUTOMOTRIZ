@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Página de acceso: formulario "Pit de acceso", vitrina 3D y sección de servicios.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAutenticacion } from '../autenticacion/Contexto'

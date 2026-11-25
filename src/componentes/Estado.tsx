@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Insignia con color y texto del estado de la orden.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import type { EstadoOrden } from '../api/tipos'
 import { etiquetaEstado } from '../estados'
 

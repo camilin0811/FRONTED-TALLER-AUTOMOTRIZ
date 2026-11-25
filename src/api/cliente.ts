@@ -1,3 +1,11 @@
+/*
+ * Para qué sirve: Cliente HTTP de la API: agrega el token, traduce los errores a ErrorApi y avisa
+ * si la sesión expiró.
+ * PATRÓN Facade: api.get/post/put/patch esconden fetch, cabeceras, JSON, tiempos de espera y manejo
+ *     de errores detrás de una interfaz simple.
+ * PATRÓN Observer (publicar/suscribir): ante un 401 emite el evento 'sesion-expirada', que escucha
+ *     el contexto de autenticación.
+ */
 import type { CuerpoError } from './tipos'
 import { tokenActual } from '../autenticacion/sesion'
 
@@ -106,6 +114,7 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
     // Token vencido o revocado: se avisa para que la sesion se cierre sola
     // en vez de dejar al usuario ante errores que no puede interpretar.
     if (respuesta.status === 401) {
+      // PATRÓN Observer: se emite el evento; Contexto.tsx está suscrito y cierra la sesión.
       window.dispatchEvent(new Event('sesion-expirada'))
     }
     throw new ErrorApi(
@@ -120,6 +129,7 @@ async function pedir<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
   return cuerpo as T
 }
 
+// PATRÓN Facade: interfaz simple sobre fetch para todo el frontend.
 export const api = {
   get: <T>(ruta: string) => pedir<T>(ruta),
   post: <T>(ruta: string, cuerpo?: unknown) =>

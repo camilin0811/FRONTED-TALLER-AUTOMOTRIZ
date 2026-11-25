@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Provee a toda la app el modal de confirmación y los avisos emergentes (toasts).
+ * PATRÓN Provider (React Context): publica en un Context las funciones confirmar y notificar.
+ */
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { Contexto, type OpcionesConfirmacion, type TonoToast } from './interaccion'

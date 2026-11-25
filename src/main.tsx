@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Punto de entrada: despierta el backend y monta React con el enrutador.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'

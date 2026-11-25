@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Formato de dinero y fechas en español de Colombia.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 /** Formatos locales en un solo lugar, para que no se repitan dispersos. */
 
 const PESOS = new Intl.NumberFormat('es-CO', {

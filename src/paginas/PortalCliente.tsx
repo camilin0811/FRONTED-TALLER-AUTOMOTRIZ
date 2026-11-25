@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Portal público: el cliente consulta su orden con placa y documento.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { ETIQUETA_ESTADO, etiquetaEstado } from '../estados'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'

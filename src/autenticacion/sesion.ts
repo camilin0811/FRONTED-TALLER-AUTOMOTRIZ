@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Guarda, lee y borra la sesión en localStorage.
+ * PATRÓN Facade: el objeto almacen esconde localStorage y el formato JSON de la sesión.
+ */
 import type { Rol } from '../api/tipos'
 
 export interface Sesion {

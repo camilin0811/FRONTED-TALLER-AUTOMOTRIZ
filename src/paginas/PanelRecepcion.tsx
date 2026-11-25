@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Tablero de recepción: órdenes en trabajo y vehículos por entregar.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { coincide } from '../texto'
 import { EN_PROCESO, POR_ENTREGAR, etiquetaEstado } from '../estados'
 import { useAutenticacion } from '../autenticacion/Contexto'

@@ -1,3 +1,8 @@
+/*
+ * Para qué sirve: Detalle de una orden para recepción: datos, historial y las acciones que permite
+ * su estado.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ordenes, personal } from '../api/servicios'

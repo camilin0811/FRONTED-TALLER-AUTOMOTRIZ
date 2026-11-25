@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Indica la pantalla de inicio de cada rol.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import type { Rol } from '../api/tipos'
 
 /**

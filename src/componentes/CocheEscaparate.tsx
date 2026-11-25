@@ -1,3 +1,11 @@
+/*
+ * Para qué sirve: Vitrina del auto 3D: decide si y cuándo cargar la escena, y muestra el selector
+ * de modo y la tarjeta de cada zona.
+ * PATRÓN Proxy virtual (carga diferida): React.lazy carga Coche3D solo cuando la vitrina entra en
+ *     pantalla; mientras tanto se ve un fondo estático en su lugar.
+ * PATRÓN Observer (publicar/suscribir): IntersectionObserver y el evento visibilitychange avisan
+ *     cuándo la vitrina se ve, para pausar el render cuando no.
+ */
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ZONAS, servicio, type IdZona } from '../servicios'
 import type { Modo, PuntoEnPantalla, Reserva, SenalAcceso } from './Coche3D'
@@ -29,6 +37,7 @@ const SIN_RESERVA: Reserva = { izquierda: 0, abajo: 0 }
  * celular, siempre dentro de la vitrina, y la escena se corre para que el
  * auto quede en el espacio libre.
  */
+// PATRÓN Proxy virtual: el componente real (y three.js) se descarga solo cuando hace falta.
 const Coche3D = lazy(() => import('./Coche3D'))
 
 function hayWebGL(): boolean {
@@ -67,6 +76,7 @@ export function CocheEscaparate({ className, interactivo = false, acceso }: {
   useEffect(() => {
     const el = caja.current
     if (!el || !soportado) return
+    // PATRÓN Observer: el navegador avisa cuando la vitrina entra o sale de la pantalla.
     const observador = new IntersectionObserver(([entrada]) => {
       setEnPantalla(entrada.isIntersecting)
       if (entrada.isIntersecting) setVisto(true)

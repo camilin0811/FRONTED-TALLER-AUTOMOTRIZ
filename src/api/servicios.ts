@@ -1,3 +1,9 @@
+/*
+ * Para qué sirve: Una función por endpoint del backend, agrupadas por recurso (ordenes, inventario,
+ * clientes...).
+ * PATRÓN Facade: las páginas llaman, por ejemplo, ordenes.obtener(id) sin conocer URLs ni métodos
+ *     HTTP.
+ */
 import { api } from './cliente'
 import type {
   Mecanico, Movimiento, OrdenCompra, OrdenDetalle, OrdenResumen,
@@ -23,6 +29,7 @@ export const publico = {
     api.post<ConsultaPublica>('/publico/orden', { placa, documento }),
 }
 
+// PATRÓN Facade: cada objeto agrupa los endpoints de un recurso.
 export const ordenes = {
   listar: (filtro: { estado?: EstadoOrden; placa?: string } = {}) => {
     const p = new URLSearchParams()

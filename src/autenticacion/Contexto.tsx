@@ -1,3 +1,11 @@
+/*
+ * Para qué sirve: Estado de la sesión (usuario, entrar y salir) disponible para toda la aplicación.
+ * PATRÓN Provider (React Context): ProveedorAutenticacion publica la sesión en un Context de React.
+ * PATRÓN Custom Hook (React): useAutenticacion() da acceso a ese contexto desde cualquier
+ *     componente.
+ * PATRÓN Observer (publicar/suscribir): escucha el evento 'sesion-expirada' que emite el cliente de
+ *     la API y cierra la sesión.
+ */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { autenticacion } from '../api/servicios'
 import { almacen, type Sesion } from './sesion'
@@ -10,6 +18,7 @@ interface Contexto {
   tieneRol: (...roles: Rol[]) => boolean
 }
 
+// PATRÓN Provider (React Context): contenedor de la sesión para todo el árbol.
 const AutenticacionContexto = createContext<Contexto | null>(null)
 
 export function ProveedorAutenticacion({ children }: { children: React.ReactNode }) {
@@ -24,6 +33,7 @@ export function ProveedorAutenticacion({ children }: { children: React.ReactNode
   // cierra sola, en vez de dejar al usuario ante errores que no entiende.
   useEffect(() => {
     const alExpirar = () => salir()
+    // PATRÓN Observer: suscripción al aviso de sesión expirada que emite api/cliente.ts.
     window.addEventListener('sesion-expirada', alExpirar)
     return () => window.removeEventListener('sesion-expirada', alExpirar)
   }, [salir])
@@ -51,6 +61,7 @@ export function ProveedorAutenticacion({ children }: { children: React.ReactNode
   return <AutenticacionContexto.Provider value={valor}>{children}</AutenticacionContexto.Provider>
 }
 
+// PATRÓN Custom Hook: acceso a la sesión desde cualquier componente.
 export function useAutenticacion() {
   const ctx = useContext(AutenticacionContexto)
   if (!ctx) throw new Error('useAutenticacion debe usarse dentro de ProveedorAutenticacion')

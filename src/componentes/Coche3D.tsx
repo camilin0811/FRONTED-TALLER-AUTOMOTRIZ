@@ -1,3 +1,11 @@
+/*
+ * Para qué sirve: Escena 3D del auto: modelo, luces, piso, modos Real/Escáner/Plano, puntos
+ * interactivos y reacción al formulario de acceso.
+ * PATRÓN Game Loop / Update Method: cada pieza de la escena se actualiza en useFrame, una vez por
+ *     cuadro; los cambios de modo y las luces avanzan con el tiempo transcurrido.
+ * PATRÓN Observer (publicar/suscribir): OrbitControls avisa con onStart/onEnd cuando el usuario
+ *     arrastra, para pausar el giro automático.
+ */
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MutableRefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'

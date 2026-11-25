@@ -1,3 +1,10 @@
+/*
+ * Para qué sirve: Contexto y hooks de interacción: useNotificar, useConfirmar y
+ * useAccionConfirmada.
+ * PATRÓN Custom Hook (React): cada hook da acceso a una parte del contexto de interacción.
+ * PATRÓN Command: useAccionConfirmada recibe la acción como una función junto con sus mensajes, y
+ *     la ejecuta solo si el usuario confirma.
+ */
 import { createContext, useCallback, useContext } from 'react'
 import { ErrorApi } from '../api/cliente'
 
@@ -29,6 +36,7 @@ export interface ContextoInteraccion {
   confirmar: (opciones: OpcionesConfirmacion) => Promise<boolean>
 }
 
+// PATRÓN Provider (React Context): contexto del modal de confirmación y los toasts.
 export const Contexto = createContext<ContextoInteraccion | null>(null)
 
 function useContextoInteraccion(): ContextoInteraccion {
@@ -60,6 +68,7 @@ export function mensajeDeError(e: unknown): string {
  *
  * Devuelve el resultado, o undefined si el usuario cancelo o fallo.
  */
+// PATRÓN Command: la acción llega como función y solo se ejecuta si el usuario confirma.
 export function useAccionConfirmada() {
   const { confirmar, notificar } = useContextoInteraccion()
   return useCallback(async <T,>(

@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Muestra avisos y errores de la API con el mensaje que redactó el servidor.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { ErrorApi } from '../api/cliente'
 
 type Tono = 'error' | 'alerta' | 'exito' | 'info'

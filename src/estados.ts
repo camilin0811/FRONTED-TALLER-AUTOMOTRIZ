@@ -1,3 +1,8 @@
+/*
+ * Para qué sirve: Textos para personas de estados, roles y movimientos, y las listas de estados por
+ * grupo.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import type { EstadoCompra, EstadoOrden, Rol } from './api/tipos'
 
 /**

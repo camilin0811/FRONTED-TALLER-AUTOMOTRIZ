@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Normaliza texto para buscar sin tildes ni mayúsculas.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 /**
  * Texto comparable: sin tildes ni mayusculas.
  *

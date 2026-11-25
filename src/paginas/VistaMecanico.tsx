@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Lista de trabajo del mecánico, pensada para tablet.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { useAccionConfirmada } from '../componentes/interaccion'
 import { useCallback, useEffect, useState } from 'react'
 import { ordenes } from '../api/servicios'

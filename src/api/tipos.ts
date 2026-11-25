@@ -1,3 +1,8 @@
+/*
+ * Para qué sirve: Tipos TypeScript que reflejan los DTO del backend.
+ * PATRÓN DTO (Data Transfer Object): contratos tipados de la API: si el backend cambia uno, el
+ *     compilador lo detecta.
+ */
 /**
  * Espejo de los DTO del backend.
  *

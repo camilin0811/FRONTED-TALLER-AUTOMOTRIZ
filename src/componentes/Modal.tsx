@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Ventana modal accesible: atrapa el foco, Esc cierra y devuelve el foco al cerrar.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 

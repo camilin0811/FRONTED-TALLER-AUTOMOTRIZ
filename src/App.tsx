@@ -1,3 +1,10 @@
+/*
+ * Para qué sirve: Define las rutas de la aplicación, el menú lateral según el rol y qué roles
+ * pueden entrar a cada página.
+ * PATRÓN Provider (React Context): envuelve todas las rutas con ProveedorAutenticacion y
+ *     ProveedorInteraccion para que cualquier página use la sesión, los modales y los avisos.
+ * PATRÓN Ruta protegida (Guard): cada ruta interna va dentro de <Guarda roles={...}>.
+ */
 import { ETIQUETA_ROL } from './estados'
 import { useState } from 'react'
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'

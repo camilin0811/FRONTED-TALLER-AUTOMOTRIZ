@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Página para direcciones que no existen.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { Link } from 'react-router-dom'
 
 /**

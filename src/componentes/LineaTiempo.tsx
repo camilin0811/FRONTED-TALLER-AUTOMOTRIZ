@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Línea de tiempo de los estados de la orden que ve el cliente.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import type { EstadoOrden, Hito } from '../api/tipos'
 import { soloFecha, soloHora } from '../formato'
 import { etiquetaEstado } from '../estados'

@@ -1,3 +1,8 @@
+/*
+ * Para qué sirve: Recepción de un vehículo: buscar o crear el cliente y el vehículo y abrir la
+ * orden.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ErrorApi } from '../api/cliente'

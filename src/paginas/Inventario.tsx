@@ -1,3 +1,7 @@
+/*
+ * Para qué sirve: Inventario: repuestos, movimientos y órdenes de compra.
+ * Patrones: ninguno de diseño específico; es una pieza sencilla de su capa.
+ */
 import { coincide } from '../texto'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useAccionConfirmada } from '../componentes/interaccion'
