@@ -3,50 +3,35 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAutenticacion } from '../autenticacion/Contexto'
 import { AvisoError } from '../componentes/Aviso'
 import { CocheEscaparate } from '../componentes/CocheEscaparate'
+import { SERVICIOS, type Servicio } from '../servicios'
 
-/** Tarjetas de la seccion de servicios. Los iconos son SVG en linea. */
-const SERVICIOS = [
-  {
-    titulo: 'Diagnóstico computarizado',
-    texto: 'Escáner OBD-II conectado a la orden: los códigos de falla se registran solos, sin transcripciones.',
-    icono: (
+/** Iconos de la seccion de servicios (SVG en linea); los textos viven en src/servicios.ts. */
+const ICONOS: Record<Servicio['id'], React.ReactNode> = {
+  diagnostico: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <rect x="4" y="3" width="16" height="12" rx="2" />
         <path d="M8 7h4M8 10h8M9 15v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2" />
       </svg>
-    ),
-  },
-  {
-    titulo: 'Mantenimiento preventivo',
-    texto: 'Planes por kilometraje con recordatorio automático: el taller avisa antes de que la falla aparezca.',
-    icono: (
+  ),
+  mantenimiento: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.9 2.9-2.1-2.1 2.9-2.9Z" />
       </svg>
-    ),
-  },
-  {
-    titulo: 'Preparación de competición',
-    texto: 'Puesta a punto de motor, frenos y suspensión con estándares de pista y control de cada ajuste.',
-    icono: (
+  ),
+  competicion: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3.5 2M12 3v2M21 12h-2M12 21v-2M3 12h2" />
       </svg>
-    ),
-  },
-  {
-    titulo: 'Motocicletas',
-    texto: 'Área dedicada con técnicos de dos ruedas: motor, transmisión final y electrónica de la moto.',
-    icono: (
+  ),
+  motocicletas: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <circle cx="5.5" cy="17" r="3.2" />
         <circle cx="18.5" cy="17" r="3.2" />
         <path d="M5.5 17 9 10h4l2.5 4M13 10l-1.5-3H9M15.5 14h3" />
       </svg>
-    ),
-  },
-]
+  ),
+}
 
 export function Login() {
   const { entrar } = useAutenticacion()
@@ -100,7 +85,7 @@ export function Login() {
             en línea de cada orden de trabajo.
           </p>
 
-          <CocheEscaparate className="heroe-coche" />
+          <CocheEscaparate className="heroe-coche" interactivo />
 
           <dl className="metricas">
             <div>
@@ -164,7 +149,7 @@ export function Login() {
         <div className="rejilla-servicios">
           {SERVICIOS.map((s, i) => (
             <article className="tarjeta-servicio" key={s.titulo} style={{ animationDelay: `${i * 90}ms` }}>
-              <div className="icono-servicio">{s.icono}</div>
+              <div className="icono-servicio">{ICONOS[s.id]}</div>
               <h3>{s.titulo}</h3>
               <p>{s.texto}</p>
             </article>
